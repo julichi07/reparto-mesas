@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reparto de mesas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ECEFF1; --card:#FFFFFF; --ink:#101619; --soft:#5B686E;
+  --line:#C6CFD3; --strong:#8B999F; --pine:#12504A; --pineink:#F1F7F5;
+  --empty:#E1E6E8; --gym:#DCE1E3; --focus:#1D6FE0; --red:#B23A48;
+  --sh:0 1px 0 rgba(16,22,25,.10); --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0F1518; --card:#171F24; --ink:#E7ECEE; --soft:#92A2A9;
+  --line:#2A363D; --strong:#44555E; --pine:#4FB3A1; --pineink:#07110F;
+  --empty:#192227; --gym:#1B252B; --focus:#6BA8FF; --red:#E4737F;
+  --sh:0 1px 0 rgba(0,0,0,.4);
+}}
+:root[data-theme="dark"]{
+  --paper:#0F1518; --card:#171F24; --ink:#E7ECEE; --soft:#92A2A9;
+  --line:#2A363D; --strong:#44555E; --pine:#4FB3A1; --pineink:#07110F;
+  --empty:#192227; --gym:#1B252B; --focus:#6BA8FF; --red:#E4737F;
+  --sh:0 1px 0 rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--paper);color:var(--ink);
+  font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-size:16px;line-height:1.4;font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
+.app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
+     padding:14px 14px calc(14px + env(safe-area-inset-bottom));gap:12px}
+.step{display:none;flex-direction:column;gap:12px;flex:1}
+.step.on{display:flex}
+button{font-family:inherit;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px}
+.back{background:none;border:0;font-size:14.5px;font-weight:600;color:var(--soft);padding:6px 4px;cursor:pointer}
+.back:disabled{opacity:.3}
+.prog{font-size:13px;color:var(--soft);font-weight:500;text-align:right}
+
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+.lede{font-size:15px;color:var(--soft);margin:0}
+.hero{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.hero h1{font-size:34px;line-height:1.05}
+
+.mesahead{display:flex;align-items:flex-start;gap:14px}
+.mesahead .txt{flex:1;min-width:0;padding-top:2px}
+.mesanum{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.mesanum.chico{font-size:22px}
+.mesasub{font-size:13px;color:var(--soft);font-weight:500;margin-top:2px}
+.mesasub.unida{color:var(--pine);font-weight:700}
+
+.mini{display:grid;grid-template-columns:repeat(6,23px);grid-auto-rows:19px;gap:3px;flex:none}
+.mini span,.mini button{display:flex;align-items:center;justify-content:center;width:23px;height:19px;
+  border-radius:3px;padding:0;border:0;background:var(--empty);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;
+  font-family:inherit;font-size:10px;font-weight:700;color:var(--soft);font-variant-numeric:tabular-nums;line-height:1}
+.mini .nada{background:transparent;box-shadow:none;cursor:default}
+.mini .gym{background:var(--gym);box-shadow:none;cursor:default}
+.mini .hecha{background:var(--strong);box-shadow:none;color:#fff}
+.mini .cero{background:var(--empty);box-shadow:inset 0 0 0 1px var(--strong);opacity:.5}
+.mini .act{background:var(--pine);box-shadow:0 0 0 2px var(--pine);color:var(--pineink)}
+
+.visor{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);
+  padding:13px 14px;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.visor .val{font-size:42px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.visor .val.ph{color:var(--soft);opacity:.4}
+.visor .lab{font-size:12.5px;color:var(--soft);font-weight:600;text-align:right;line-height:1.3}
+
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pad button{background:var(--card);border:1.5px solid var(--strong);border-radius:var(--r);
+  font-size:23px;font-weight:700;padding:15px 0;cursor:pointer;font-variant-numeric:tabular-nums}
+.pad button.aux{font-size:15px;font-weight:600;color:var(--soft)}
+.pad button:active{background:var(--pine);color:var(--pineink);border-color:var(--pine)}
+
+.acciones{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-top:8px}
+.wide{width:100%;border-radius:var(--r);border:0;padding:15px;font-size:17px;font-weight:700;cursor:pointer;
+  background:var(--pine);color:var(--pineink)}
+.wide:disabled{opacity:.35;cursor:default}
+.nav{display:flex;gap:8px}
+.nav button{border-radius:var(--r);padding:15px 8px;font-size:16px;font-weight:700;cursor:pointer;
+  border:1.5px solid var(--strong);background:var(--card)}
+.nav .sec{flex:0 0 36%}
+.nav .pri{flex:1;background:var(--pine);color:var(--pineink);border-color:var(--pine)}
+.nav button:disabled{opacity:.3;cursor:default}
+.alt{display:flex;gap:8px}
+.alt button{flex:1;background:var(--card);border:1.5px solid var(--strong);border-radius:var(--r);
+  padding:11px 8px;font-size:13.5px;font-weight:600;cursor:pointer;line-height:1.25}
+.alt button:disabled{opacity:.3;cursor:default}
+.alt button.danger{color:var(--red);border-color:var(--red)}
+.alt button.marcada{background:var(--pine);color:var(--pineink);border-color:var(--pine)}
+
+.nombres{display:flex;flex-direction:column;gap:8px}
+.nombres .fila{display:flex;align-items:center;gap:10px}
+.nombres .idx{width:24px;height:24px;border-radius:50%;flex:none}
+input[type=text]{flex:1;font-family:inherit;font-size:16px;background:var(--card);color:var(--ink);
+  border:1.5px solid var(--strong);border-radius:var(--r);padding:11px 12px;min-width:0}
+
+.resumen{font-size:13.5px;color:var(--soft);margin:0}
+.wcard{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--strong);
+  border-radius:var(--r);box-shadow:var(--sh);padding:12px 13px;display:flex;gap:12px;align-items:flex-start}
+.wcard .b{flex:1;min-width:0}
+.wcard .nm{font-size:15px;font-weight:700;margin-bottom:3px}
+.wcard .ms{font-size:15px;line-height:1.4}
+.wcard .mt{font-size:12.5px;color:var(--soft);margin-top:4px}
+.wcard .tt{flex:none;text-align:right}
+.wcard .tt b{display:block;font-size:24px;font-weight:800;line-height:1}
+.wcard .tt span{font-size:11px;color:var(--soft);font-weight:600}
+.lista{display:flex;flex-direction:column;gap:8px}
+
+.plan{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:9px 9px 0;box-shadow:var(--sh)}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.grid .c{aspect-ratio:1/.88;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;line-height:1.05;background:var(--empty);color:var(--soft);
+  box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.grid .c.nada{background:transparent;box-shadow:none}
+.grid .c.gymb{background:var(--gym);box-shadow:none}
+.grid .c.on{color:#fff;box-shadow:none}
+.grid .c small{font-size:10px;font-weight:600;opacity:.85}
+.mostrador{margin:7px -9px 0;background:var(--pine);color:var(--pineink);text-align:center;
+  font-size:11.5px;font-weight:700;padding:6px 0;border-radius:0 0 7px 7px}
+.aviso{font-size:13px;background:var(--empty);border:1px solid var(--strong);border-radius:var(--r);padding:9px 11px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<section class="step" id="s-inicio">
+  <div class="hero">
+    <h1>Reparto de mesas</h1>
+    <p class="lede">Cargá los cubiertos mesa por mesa y repartí el salón en partes iguales.</p>
+    <div class="acciones">
+      <button class="wide" id="btnEmpezar">Cargar el salón</button>
+      <div class="alt"><button id="btnSeguir" hidden></button></div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="s-carga">
+  <div class="topbar">
+    <span class="prog" id="prog"></span>
+  </div>
+  <div class="mesahead">
+    <div class="txt">
+      <div class="mesanum" id="mesaNum"></div>
+      <div class="mesasub" id="mesaSub"></div>
+    </div>
+    <div class="mini" id="mini"></div>
+  </div>
+  <div class="visor">
+    <span class="val ph" id="visor">0</span>
+    <span class="lab">cubiertos<br>en esta mesa</span>
+  </div>
+  <div class="pad" id="pad"></div>
+  <div class="acciones">
+    <div class="nav">
+      <button class="sec" id="atras">← Atrás</button>
+      <button class="pri" id="siguiente">Siguiente →</button>
+    </div>
+    <div class="alt">
+      <button id="btnSinUsar">Sin usar</button>
+      <button id="btnUnir">Unir con la siguiente</button>
+    </div>
+    <div class="alt">
+      <button id="btnSeparar">Separar</button>
+      <button id="btnTerminar">Terminar y repartir</button>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="s-mozos">
+  <div class="topbar">
+    <button class="back" id="atrasMozos">← Volver al salón</button>
+    <span class="prog" id="progMozos"></span>
+  </div>
+  <div>
+    <h1>¿Cuántos camareros?</h1>
+    <p class="lede" id="mozosLede"></p>
+  </div>
+  <div class="visor">
+    <span class="val ph" id="visorMozos">0</span>
+    <span class="lab">camareros<br>en el turno</span>
+  </div>
+  <div class="pad" id="padMozos"></div>
+  <div class="acciones"><button class="wide" id="aNombres">Siguiente</button></div>
+</section>
+
+<section class="step" id="s-nombres">
+  <div class="topbar">
+    <button class="back" id="atrasNombres">← Atrás</button>
+    <span class="prog">Paso final</span>
+  </div>
+  <div>
+    <h1>Nombres</h1>
+    <p class="lede">Opcional. Si los dejás vacíos van como Camarero 1, 2, 3…</p>
+  </div>
+  <div class="nombres" id="nombres"></div>
+  <div class="acciones"><button class="wide" id="btnRepartir">Repartir mesas</button></div>
+</section>
+
+<section class="step" id="s-resultado">
+  <div class="topbar">
+    <button class="back" id="atrasResultado">← Cambiar camareros</button>
+    <span class="prog" id="progRes"></span>
+  </div>
+  <div id="avisos"></div>
+  <p class="resumen" id="resumen"></p>
+  <div class="lista" id="lista"></div>
+  <div class="plan">
+    <div class="grid" id="planGrid"></div>
+    <div class="mostrador">mostrador</div>
+  </div>
+  <div class="acciones">
+    <div class="alt">
+      <button id="btnOtro">Probar otro reparto</button>
+      <button id="btnVolverSalon">Corregir mesas</button>
+    </div>
+    <div class="alt"><button id="btnNuevo" class="danger">Empezar de nuevo</button></div>
+  </div>
+</section>
+
+</div>
+<script>
+(function(){
+"use strict";
+
+/* ===== plano ===== */
+const COLS=[{i:0,desde:1,hasta:9},{i:1,desde:10,hasta:18},{i:2,desde:20,hasta:27},
+            {i:3,desde:30,hasta:34},{i:4,desde:40,hasta:44},{i:5,desde:50,hasta:54}];
+const FILAS=9, GRANDE=8;
+const MESAS=[];
+COLS.forEach(c=>{for(let n=c.desde;n<=c.hasta;n++)MESAS.push({id:n,col:c.i,fila:n-c.desde+1});});
+const PORID=new Map(MESAS.map(m=>[m.id,m]));
+const ENPOS=new Map(MESAS.map(m=>[m.col+","+m.fila,m]));
+const ORDEN=MESAS.map(m=>m.id);
+const POSORDEN=new Map(ORDEN.map((id,k)=>[id,k]));
+const COLORES=["#C8414F","#E07B16","#2C7F68","#2778A0","#5B4B8A","#8A5836","#A8860B","#496370","#9C3F92","#3D7A22"];
+
+/* ===== estado =====
+   cub[id] = null (sin cargar) | 0 (sin usar) | n
+   grupo[id] = id de referencia de la unidad (la mesa más baja de la unión) */
+const S={cur:ORDEN[0], cub:{}, ref:{}, mozos:0, nombres:[], resultado:null, semilla:0};
+MESAS.forEach(m=>{S.cub[m.id]=null; S.ref[m.id]=m.id;});
+let buf="", fresco=true, bufM="";
+
+function guardar(){try{localStorage.setItem("reparto-v3",JSON.stringify(
+  {cur:S.cur,cub:S.cub,ref:S.ref,mozos:S.mozos,nombres:S.nombres}));}catch(e){}}
+function leerGuardado(){try{return JSON.parse(localStorage.getItem("reparto-v3")||"null");}catch(e){return null;}}
+
+function idsDeUnidad(id){const r=S.ref[id];return ORDEN.filter(x=>S.ref[x]===r);}
+function valorDe(id){return S.cub[S.ref[id]];}
+function setValor(id,v){S.cub[S.ref[id]]=v;}
+
+function ir(n){document.querySelectorAll(".step").forEach(s=>s.classList.toggle("on",s.id==="s-"+n));window.scrollTo(0,0);}
+
+function armarPad(el,onD,onB){
+  el.innerHTML="";
+  const p=(t,c,f)=>{const b=document.createElement("button");b.type="button";b.textContent=t;if(c)b.className=c;
+    b.addEventListener("click",f);el.appendChild(b);};
+  [7,8,9,4,5,6,1,2,3].forEach(n=>p(n,"",()=>onD(String(n))));
+  p("⌫","aux",()=>onB(false)); p(0,"",()=>onD("0")); p("C","aux",()=>onB(true));
+}
+
+/* ===== pantalla de carga ===== */
+const $visor=document.getElementById("visor"), $num=document.getElementById("mesaNum"),
+      $sub=document.getElementById("mesaSub"), $prog=document.getElementById("prog"),
+      $mini=document.getElementById("mini"), $unir=document.getElementById("btnUnir"),
+      $sep=document.getElementById("btnSeparar"), $atras=document.getElementById("atras");
+
+function etiqueta(ids){
+  if(ids.length===1)return "Mesa "+ids[0];
+  const seg=ids.every((x,k)=>k===0||x===ids[k-1]+1);
+  return "Mesas "+(seg?ids[0]+"–"+ids[ids.length-1]:ids.join(", "));
+}
+function siguienteDe(id){const m=PORID.get(id);return ENPOS.get(m.col+","+(m.fila+1))||null;}
+function unibleConSiguiente(){
+  const ids=idsDeUnidad(S.cur);
+  const s=siguienteDe(ids[ids.length-1]);
+  return (s && S.ref[s.id]!==S.ref[S.cur]) ? s : null;
+}
+function puedeUnir(){return !!unibleConSiguiente();}
+function irA(id){ S.cur=id; buf = valorDe(id)===null?"":String(valorDe(id)); fresco=true; guardar(); pintar(); }
+
+function pintar(){
+  const ids=idsDeUnidad(S.cur);
+  $num.textContent=etiqueta(ids);
+  $num.classList.toggle("chico",ids.length>2);
+  if(ids.length>1){ $sub.textContent="unidas · poné el total de la mesa entera"; $sub.className="mesasub unida"; }
+  else { const c=PORID.get(S.cur).col; $sub.textContent="columna "+COLS[c].desde+"–"+COLS[c].hasta; $sub.className="mesasub"; }
+
+  let cargadas=0,cub=0;
+  ORDEN.forEach(id=>{ if(S.ref[id]===id && S.cub[id]!==null){ cargadas+=idsDeUnidad(id).length; cub+=S.cub[id]; } });
+  $prog.textContent=cargadas+" de "+ORDEN.length+" mesas<br>"+cub+" cubiertos";
+  $prog.innerHTML=cargadas+" de "+ORDEN.length+" mesas · "+cub+" cubiertos";
+
+  const v=valorDe(S.cur);
+  $visor.textContent = buf!==""?buf:(v===0?"0":"0");
+  $visor.classList.toggle("ph", buf==="");
+  if(buf===""&&v===0){ $visor.textContent="0"; $visor.classList.remove("ph"); }
+
+  $unir.disabled=!puedeUnir();
+  $sep.disabled=ids.length<2;
+  $atras.disabled = POSORDEN.get(ids[0])===0;
+  pintarMini();
+}
+function pintarMini(){
+  const act=new Set(idsDeUnidad(S.cur));
+  $mini.innerHTML="";
+  for(let f=FILAS;f>=1;f--) for(let c=0;c<6;c++){
+    const m=ENPOS.get(c+","+f);
+    if(!m){ const s=document.createElement("span"); s.className=(c>=3&&f>=6)?"gym":"nada"; $mini.appendChild(s); continue; }
+    const b=document.createElement("button"); b.type="button";
+    const v=valorDe(m.id);
+    b.className = act.has(m.id) ? "act" : (v===null?"":(v>0?"hecha":"cero"));
+    b.textContent=m.id;
+    b.setAttribute("aria-label","Ir a la mesa "+m.id);
+    b.addEventListener("click",()=>{ guardarBuffer(); irA(m.id); });
+    $mini.appendChild(b);
+  }
+}
+function guardarBuffer(){
+  if(buf===""){ return; }
+  const n=parseInt(buf,10);
+  if(isFinite(n)&&n>=0) setValor(S.cur,n);
+}
+function avanzar(){
+  guardarBuffer();
+  const ids=idsDeUnidad(S.cur);
+  const k=POSORDEN.get(ids[ids.length-1])+1;
+  if(k>=ORDEN.length){ prepararMozos(); return; }
+  irA(ORDEN[k]);
+}
+function retroceder(){
+  guardarBuffer();
+  const ids=idsDeUnidad(S.cur);
+  const k=POSORDEN.get(ids[0])-1;
+  if(k<0)return;
+  irA(ORDEN[k]);
+}
+
+armarPad(document.getElementById("pad"),
+  d=>{ if(fresco){ buf=""; fresco=false; } if(buf.length<2) buf=(buf==="0"?"":buf)+d; pintar(); },
+  todo=>{ fresco=false; buf = todo?"":buf.slice(0,-1); pintar(); });
+
+document.getElementById("siguiente").addEventListener("click",avanzar);
+$atras.addEventListener("click",retroceder);
+document.getElementById("btnSinUsar").addEventListener("click",()=>{ buf="0"; setValor(S.cur,0); avanzar(); });
+$unir.addEventListener("click",()=>{
+  const s=unibleConSiguiente();
+  if(!s)return;
+  guardarBuffer();
+  const refA=S.ref[S.cur], refB=S.ref[s.id];
+  const valA=S.cub[refA], valB=S.cub[refB];
+  const destino=Math.min(refA,refB);
+  ORDEN.forEach(x=>{ if(S.ref[x]===refA||S.ref[x]===refB) S.ref[x]=destino; });
+  S.cub[destino] = (valA!==null?valA:valB);
+  S.cur=destino;
+  buf = S.cub[destino]===null?"":String(S.cub[destino]); fresco=true;
+  guardar(); pintar();
+});
+$sep.addEventListener("click",()=>{
+  const ids=idsDeUnidad(S.cur);
+  ids.forEach(x=>{ S.ref[x]=x; S.cub[x]=null; });
+  S.cur=ids[0]; buf=""; fresco=true; guardar(); pintar();
+});
+document.getElementById("btnTerminar").addEventListener("click",()=>{ guardarBuffer(); prepararMozos(); });
+
+/* ===== camareros ===== */
+const $vm=document.getElementById("visorMozos");
+function unidadesActivas(){
+  const out=[];
+  ORDEN.forEach(id=>{ if(S.ref[id]===id && S.cub[id]!==null && S.cub[id]>0) out.push({ids:idsDeUnidad(id),cub:S.cub[id]}); });
+  return out;
+}
+function prepararMozos(){
+  const act=unidadesActivas();
+  const cub=act.reduce((a,u)=>a+u.cub,0);
+  const sinCargar=ORDEN.filter(id=>valorDe(id)===null).length;
+  document.getElementById("mozosLede").textContent =
+    cub+" cubiertos en "+act.length+(act.length===1?" mesa":" mesas")+" en uso."+
+    (sinCargar?" Las "+sinCargar+" mesas sin cargar quedan afuera.":"");
+  document.getElementById("progMozos").textContent="Salón cargado";
+  bufM=S.mozos?String(S.mozos):""; pintarMozos(); ir("mozos");
+}
+function pintarMozos(){
+  $vm.textContent=bufM===""?"0":bufM;
+  $vm.classList.toggle("ph",bufM==="");
+  document.getElementById("aNombres").disabled=bufM===""||parseInt(bufM,10)<1;
+}
+armarPad(document.getElementById("padMozos"),
+  d=>{ if(bufM.length<2) bufM=(bufM==="0"?"":bufM)+d; pintarMozos(); },
+  todo=>{ bufM=todo?"":bufM.slice(0,-1); pintarMozos(); });
+document.getElementById("atrasMozos").addEventListener("click",()=>{ pintar(); ir("carga"); });
+document.getElementById("aNombres").addEventListener("click",()=>{ S.mozos=parseInt(bufM,10); guardar(); pintarNombres(); ir("nombres"); });
+
+/* ===== nombres ===== */
+function pintarNombres(){
+  const c=document.getElementById("nombres"); c.innerHTML="";
+  for(let k=0;k<S.mozos;k++){
+    const f=document.createElement("div"); f.className="fila";
+    const d=document.createElement("span"); d.className="idx"; d.style.background=COLORES[k%COLORES.length];
+    const i=document.createElement("input"); i.type="text"; i.placeholder="Camarero "+(k+1); i.autocomplete="off";
+    i.value=S.nombres[k]||"";
+    i.addEventListener("input",()=>{S.nombres[k]=i.value.slice(0,24);guardar();});
+    f.append(d,i); c.appendChild(f);
+  }
+}
+document.getElementById("atrasNombres").addEventListener("click",()=>ir("mozos"));
+document.getElementById("btnRepartir").addEventListener("click",()=>{S.semilla=0;calcular();});
+document.getElementById("atrasResultado").addEventListener("click",()=>ir("mozos"));
+document.getElementById("btnVolverSalon").addEventListener("click",()=>{ pintar(); ir("carga"); });
+document.getElementById("btnOtro").addEventListener("click",()=>{S.semilla++;calcular();});
+document.getElementById("btnNuevo").addEventListener("click",()=>{
+  MESAS.forEach(m=>{S.cub[m.id]=null;S.ref[m.id]=m.id;});
+  S.resultado=null; irA(ORDEN[0]); ir("carga");
+});
+
+/* ===== adyacencia ===== */
+function grafo(us){
+  const dueño=new Map(); us.forEach((u,k)=>u.ids.forEach(id=>dueño.set(id,k)));
+  const g=us.map(()=>new Set());
+  us.forEach((u,k)=>{
+    const visto=new Set(u.ids), cola=u.ids.map(id=>PORID.get(id));
+    while(cola.length){
+      const m=cola.shift();
+      [[m.col,m.fila-1],[m.col,m.fila+1],[m.col-1,m.fila],[m.col+1,m.fila]].forEach(([c,f])=>{
+        const v=ENPOS.get(c+","+f); if(!v||visto.has(v.id))return;
+        visto.add(v.id);
+        const o=dueño.get(v.id);
+        if(o!==undefined){ if(o!==k) g[k].add(o); } else cola.push(v);
+      });
+    }
+  });
+  g.forEach((s,k)=>s.forEach(o=>g[o].add(k)));
+  return g;
+}
+
+/* ===== solver ===== */
+function repartir(us,k,semilla){
+  const n=us.length;
+  if(k<1||!n)return null;
+  if(k===1)return [[...Array(n).keys()]];
+  if(k>=n)return [...Array(n).keys()].map(x=>[x]).concat(Array.from({length:k-n},()=>[]));
+  const g=grafo(us), cub=us.map(u=>u.cub);
+  const media=cub.reduce((a,b)=>a+b,0)/k;
+  const gr=us.map(u=>u.cub>=GRANDE?1:0), mediaG=gr.reduce((a,b)=>a+b,0)/k;
+  const celdas=us.map(u=>u.ids.map(id=>PORID.get(id)));
+
+  function costo(a){
+    const c=new Array(k).fill(0),G=new Array(k).fill(0),t=new Array(k).fill(0);
+    const c0=new Array(k).fill(9),c1=new Array(k).fill(-9),f0=new Array(k).fill(99),f1=new Array(k).fill(-9);
+    for(let u=0;u<n;u++){const x=a[u];c[x]+=cub[u];G[x]+=gr[u];t[x]++;
+      celdas[u].forEach(m=>{if(m.col<c0[x])c0[x]=m.col;if(m.col>c1[x])c1[x]=m.col;
+        if(m.fila<f0[x])f0[x]=m.fila;if(m.fila>f1[x])f1[x]=m.fila;});}
+    let bal=0,big=0,comp=0;
+    for(let x=0;x<k;x++){ if(!t[x])return Infinity;
+      const d=c[x]-media; bal+=d*d; const dg=G[x]-mediaG; big+=dg*dg;
+      comp+=2*((c1[x]-c0[x]+1)+(f1[x]-f0[x]+1)); }
+    return 2.0*bal+12*big+0.6*comp;
+  }
+  function conexo(a,x){
+    const m=[];for(let u=0;u<n;u++)if(a[u]===x)m.push(u);
+    if(m.length<=1)return true;
+    const v=new Set([m[0]]),q=[m[0]];
+    while(q.length){const y=q.pop();g[y].forEach(z=>{if(a[z]===x&&!v.has(z)){v.add(z);q.push(z);}});}
+    return v.size===m.length;
+  }
+  function rng(s){let x=(s>>>0)||1;return()=>{x^=x<<13;x>>>=0;x^=x>>17;x^=x<<5;x>>>=0;return x/4294967296;};}
+
+  let mejor=null,mejorC=Infinity;
+  for(let r=0;r<10;r++){
+    const rnd=rng(2654435761+r*40503+semilla*7919+n*131);
+    const sem=[Math.floor(rnd()*n)];
+    while(sem.length<k){
+      let el=-1,dm=-1;
+      for(let u=0;u<n;u++){
+        if(sem.includes(u))continue;
+        let d=Infinity;
+        sem.forEach(s=>celdas[u].forEach(m=>celdas[s].forEach(p=>{
+          const dd=Math.abs(p.col-m.col)*2.2+Math.abs(p.fila-m.fila); if(dd<d)d=dd;})));
+        d+=rnd()*1.6; if(d>dm){dm=d;el=u;}
+      }
+      sem.push(el);
+    }
+    const a=new Array(n).fill(-1); sem.forEach((u,x)=>a[u]=x);
+    const cc=new Array(k).fill(0); sem.forEach((u,x)=>cc[x]=cub[u]);
+    let faltan=n-k,guard=0;
+    while(faltan>0&&guard++<n*k+80){
+      const orden=[...Array(k).keys()].sort((p,q)=>cc[p]-cc[q]);
+      let ok=false;
+      for(const x of orden){
+        const cand=[];
+        for(let u=0;u<n;u++){if(a[u]!==-1)continue;for(const v of g[u])if(a[v]===x){cand.push(u);break;}}
+        if(!cand.length)continue;
+        cand.sort((p,q)=>cub[p]-cub[q]);
+        const el=cand[Math.floor(rnd()*Math.min(2,cand.length))];
+        a[el]=x;cc[x]+=cub[el];faltan--;ok=true;break;
+      }
+      if(!ok){const u=a.indexOf(-1);if(u===-1)break;
+        let x=0,mn=Infinity;for(let i=0;i<k;i++)if(cc[i]<mn){mn=cc[i];x=i;}
+        a[u]=x;cc[x]+=cub[u];faltan--;}
+    }
+    for(let u=0;u<n;u++)if(a[u]===-1)a[u]=0;
+    let c=costo(a); if(!isFinite(c))continue;
+    let T=Math.max(6,media*media*0.05);
+    for(let paso=0;paso<5000;paso++){
+      T*=0.9992;
+      const u=Math.floor(rnd()*n),x=a[u];
+      const vec=[...g[u]].filter(v=>a[v]!==x); if(!vec.length)continue;
+      let cnt=0;for(let i=0;i<n;i++)if(a[i]===x)cnt++;
+      if(cnt<2)continue;
+      const dest=a[vec[Math.floor(rnd()*vec.length)]];
+      a[u]=dest;
+      if(!conexo(a,x)){a[u]=x;continue;}
+      const c2=costo(a);
+      if(c2<=c||rnd()<Math.exp((c-c2)/Math.max(T,1e-4)))c=c2; else a[u]=x;
+    }
+    if(c<mejorC){mejorC=c;mejor=[...a];}
+  }
+  if(!mejor)return null;
+  const gs=Array.from({length:k},()=>[]);
+  mejor.forEach((x,u)=>gs[x].push(u));
+  gs.forEach(x=>x.sort((p,q)=>us[p].ids[0]-us[q].ids[0]));
+  gs.sort((p,q)=>(us[p[0]]?us[p[0]].ids[0]:999)-(us[q[0]]?us[q[0]].ids[0]:999));
+  return gs;
+}
+
+/* ===== resultado ===== */
+function textoMesas(us){
+  return us.map(u=>{
+    if(u.ids.length===1)return String(u.ids[0]);
+    const s=u.ids, seg=s.every((x,k)=>k===0||x===s[k-1]+1);
+    return (seg?s[0]+"–"+s[s.length-1]:s.join("+"))+" juntas";
+  }).join(", ");
+}
+function calcular(){
+  const act=unidadesActivas();
+  if(!act.length){ pintar(); ir("carga"); return; }
+  const gs=repartir(act,S.mozos,S.semilla);
+  if(!gs){ ir("mozos"); return; }
+  const nombres=[];
+  for(let k=0;k<S.mozos;k++) nombres.push((S.nombres[k]||"").trim()||("Camarero "+(k+1)));
+  const orden=[...nombres.keys()];
+  let s=(S.semilla*7919+act.length*31+17)>>>0;
+  for(let i=orden.length-1;i>0;i--){s=(s*1664525+1013904223)>>>0;const j=s%(i+1);[orden[i],orden[j]]=[orden[j],orden[i]];}
+  S.resultado=gs.map((idx,k)=>{
+    const us=idx.map(u=>act[u]);
+    return {nombre:nombres[orden[k]],unidades:us,cub:us.reduce((a,u)=>a+u.cub,0),color:COLORES[k%COLORES.length]};
+  });
+  pintarResultado(); ir("resultado");
+}
+function pintarResultado(){
+  const res=S.resultado, tot=res.map(r=>r.cub);
+  const prom=Math.round(tot.reduce((a,b)=>a+b,0)/res.length);
+  document.getElementById("progRes").textContent=res.length+(res.length===1?" camarero":" camareros");
+  document.getElementById("resumen").textContent="Promedio "+prom+" cubiertos · diferencia entre el que más y el que menos: "+(Math.max(...tot)-Math.min(...tot));
+  document.getElementById("avisos").innerHTML = res.some(r=>!r.unidades.length)
+    ? '<div class="aviso">Hay más camareros que mesas en uso, así que alguno queda sin mesas.</div>':"";
+  document.getElementById("lista").innerHTML=res.map(r=>{
+    const d=r.cub-prom, dt=d===0?"justo en el promedio":(d>0?"+"+d:d)+" respecto del promedio";
+    const nm=r.unidades.reduce((a,u)=>a+u.ids.length,0);
+    return '<div class="wcard" style="border-left-color:'+r.color+'"><div class="b"><div class="nm">'+esc(r.nombre)+'</div>'
+      +'<div class="ms">'+(r.unidades.length?textoMesas(r.unidades):"sin mesas")+'</div>'
+      +'<div class="mt">'+nm+(nm===1?" mesa":" mesas")+' · '+dt+'</div></div>'
+      +'<div class="tt"><b>'+r.cub+'</b><span>cubiertos</span></div></div>';
+  }).join("");
+  const color=new Map();
+  res.forEach(r=>r.unidades.forEach(u=>u.ids.forEach(id=>color.set(id,r.color))));
+  let html="";
+  for(let f=FILAS;f>=1;f--)for(let c=0;c<6;c++){
+    const m=ENPOS.get(c+","+f);
+    if(!m){ html+=(c>=3&&f>=6)?'<div class="c gymb"></div>':'<div class="c nada"></div>'; continue; }
+    const col=color.get(m.id);
+    html += col ? '<div class="c on" style="background:'+col+'">'+m.id+'<small>'+valorDe(m.id)+'</small></div>'
+                : '<div class="c">'+m.id+'</div>';
+  }
+  document.getElementById("planGrid").innerHTML=html;
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ===== arranque ===== */
+document.getElementById("btnEmpezar").addEventListener("click",()=>{
+  MESAS.forEach(m=>{S.cub[m.id]=null;S.ref[m.id]=m.id;});
+  irA(ORDEN[0]); ir("carga");
+});
+const prev=leerGuardado();
+if(prev&&prev.cub&&ORDEN.some(id=>prev.cub[id]!==null&&prev.cub[id]!==undefined)){
+  const b=document.getElementById("btnSeguir");
+  b.hidden=false; b.textContent="Seguir donde quedé (mesa "+(prev.cur||1)+")";
+  b.addEventListener("click",()=>{
+    ORDEN.forEach(id=>{ S.cub[id]=(prev.cub[id]===undefined?null:prev.cub[id]); S.ref[id]=prev.ref&&prev.ref[id]?prev.ref[id]:id; });
+    S.mozos=prev.mozos||0; S.nombres=prev.nombres||[];
+    irA(prev.cur||ORDEN[0]); ir("carga");
+  });
+}
+pintar(); ir("inicio");
+})();
+</script>
+</body>
+</html>
