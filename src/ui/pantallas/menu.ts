@@ -13,8 +13,8 @@ export function crearMenu(ctx: Ctx): Pantalla {
       h(
         "div",
         { class: "menu" },
-        h("button", { type: "button", class: "pri", onclick: () => ctx.ir("inicio") }, h("b", {}, "Repartir"), h("span", {}, "Cargar cubiertos y armar los bloques")),
-        h("button", { type: "button", onclick: () => ctx.ir("plano") }, h("b", {}, "Plano de hoy"), h("span", {}, "Ajustar mesas y columnas del día")),
+        h("button", { type: "button", class: "pri", onclick: () => ctx.ir("hoy") }, h("b", {}, "Repartir"), h("span", {}, "Elegir camareros y repartir")),
+        h("button", { type: "button", onclick: () => ctx.ir("plano") }, h("b", {}, "Plano"), h("span", {}, "Editar mesas y cargar cubiertos")),
         h("button", { type: "button", onclick: () => ctx.ir("camareros") }, h("b", {}, "Camareros"), h("span", {}, "La lista fija del restorán")),
       ),
     ),

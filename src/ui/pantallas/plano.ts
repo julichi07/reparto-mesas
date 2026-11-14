@@ -16,9 +16,9 @@ import {
 } from "../../domain/edicion";
 import type { Jornada } from "../../domain/jornada";
 import { planoInicial, validarSalon, type Etiqueta, type Salon } from "../../domain/plano";
-import { conConfirmacion } from "../confirmar";
 import type { Ctx, Pantalla } from "../contexto";
 import { h, vaciar } from "../dom";
+import { pedirConfirmacion } from "../modal";
 import { dibujarPlano } from "../plano-vista";
 
 type Seleccion = { tipo: "mesa"; etiqueta: Etiqueta } | { tipo: "columna"; col: number } | null;
@@ -135,12 +135,14 @@ export function crearPlano(ctx: Ctx): Pantalla {
         boton(
           "Borrar mesa",
           () =>
-            aplicar(
-              (s) => borrarMesa(s, etiqueta),
-              (n) => {
-                const quedo = mesaTrasBorrar(ix.salon, n, etiqueta);
-                return quedo ? mesa(quedo) : null;
-              },
+            pedirConfirmacion({ titulo: `¿Borrar la mesa ${etiqueta}?`, texto: "Se borra del plano, con sus cubiertos.", aceptar: "Borrar" }, () =>
+              aplicar(
+                (s) => borrarMesa(s, etiqueta),
+                (n) => {
+                  const quedo = mesaTrasBorrar(ix.salon, n, etiqueta);
+                  return quedo ? mesa(quedo) : null;
+                },
+              ),
             ),
           { peligro: true },
         ),
@@ -166,7 +168,14 @@ export function crearPlano(ctx: Ctx): Pantalla {
         "div",
         { class: "alt" },
         boton("Agregar mesa al fondo", () => aplicar((s) => agregarPosicion(s, col, c.posiciones.length - 1), (n) => mesa(n.columnas[col]!.posiciones.at(-1)![0]!))),
-        boton("Borrar columna", () => aplicar((s) => borrarColumna(s, col), (n) => ({ tipo: "columna", col: columnaTrasBorrar(n, col) })), { peligro: true }),
+        boton(
+          "Borrar columna",
+          () =>
+            pedirConfirmacion({ titulo: `¿Borrar la columna ${col + 1}?`, texto: `Se borran sus ${c.posiciones.flat().length} mesas, con sus cubiertos.`, aceptar: "Borrar" }, () =>
+              aplicar((s) => borrarColumna(s, col), (n) => ({ tipo: "columna", col: columnaTrasBorrar(n, col) })),
+            ),
+          { peligro: true },
+        ),
       ),
     ];
   }
@@ -181,14 +190,21 @@ export function crearPlano(ctx: Ctx): Pantalla {
   // Estos dos botones están siempre a la vista, no dentro del panel: el panel cambia según lo
   // que esté seleccionado, y con el cursor casi siempre hay algo seleccionado.
   const $agregarColumna = boton("Agregar columna", () => aplicar((s) => agregarColumna(s), { tipo: "columna", col: ctx.ix.salon.columnas.length }));
-  const $base = boton("Volver al plano base", () => {}, { peligro: true });
   // Deja todo como al empezar: el plano base (numeración, mesas partidas y redondas) y sin cubiertos
-  // ni uniones cargados, porque el plano base no tiene relación mesa a mesa con el de hoy. Si hay
-  // cubiertos cargados pide un segundo toque; Deshacer devuelve todo mientras no se salga de la pantalla.
-  conConfirmacion($base, { texto: "Se borran los cubiertos cargados: tocá de nuevo", necesita: () => ctx.hayCarga() }, () =>
-    aplicar(() => planoInicial().salones[0]!, null, { descartarCarga: true }),
+  // ni uniones cargados, porque el plano base no tiene relación mesa a mesa con el de hoy. Pide
+  // confirmar; Deshacer devuelve todo mientras no se salga de la pantalla.
+  const $base = boton(
+    "Reiniciar plano",
+    () =>
+      pedirConfirmacion({ titulo: "¿Reiniciar el plano?", texto: "Vuelve al plano base y se borran los cubiertos cargados.", aceptar: "Reiniciar" }, () =>
+        aplicar(() => planoInicial().salones[0]!, null, { descartarCarga: true }),
+      ),
+    { peligro: true },
   );
   const $herramientas = h("div", { class: "alt" }, $agregarColumna, $base);
+  // Seguir con la carga de cubiertos. Solo se muestra si se entró desde el menú: desde la carga
+  // ya se está volviendo a ella.
+  const $cargar = h("button", { type: "button", class: "wide", onclick: () => ctx.ir("carga") }, "Cargar cubiertos →") as HTMLButtonElement;
 
   function pintar(): void {
     const ix = ctx.ix;
@@ -208,6 +224,8 @@ export function crearPlano(ctx: Ctx): Pantalla {
     });
 
     $plano.style.setProperty("--filas", String(ix.alto)); // las filas se ajustan para que quepa todo
+    $cargar.hidden = destino === "carga";
+    $plano.style.setProperty("--reserva", destino === "carga" ? "444px" : "500px"); // alto de lo que no es el plano
     vaciar($plano);
     $plano.append(
       cabecera,
@@ -239,7 +257,7 @@ export function crearPlano(ctx: Ctx): Pantalla {
     h("div", { class: "topbar" }, $volver, $deshacer),
     $plano,
     // el panel queda pegado abajo: se ve el plano y las acciones a la vez, aunque la pantalla sea chica
-    h("div", { class: "pie-fijo" }, $panel, $herramientas),
+    h("div", { class: "pie-fijo" }, $panel, $herramientas, $cargar),
   );
 
   return {

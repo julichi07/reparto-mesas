@@ -79,6 +79,9 @@ h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
 .mini .celda>button.cero{box-shadow:inset 0 0 0 1px var(--strong);opacity:.5}
 .mini .celda>button.act{background:var(--pine);box-shadow:0 0 0 2px var(--pine);color:var(--pineink)}
 .mini .celda.doble>button{font-size:9px}
+/* mesas unidas: siempre con aro azul, estén o no seleccionadas, como recordatorio */
+.mini .celda>button.unida{box-shadow:inset 0 0 0 2px var(--focus)}
+.mini .celda>button.unida.act{box-shadow:0 0 0 2px var(--pine),inset 0 0 0 2px var(--focus)}
 
 /* editor de plano */
 .plan .celda>button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
@@ -177,12 +180,27 @@ input[type=text]{flex:1;font-family:inherit;font-size:16px;background:var(--card
 .aviso{font-size:13px;background:var(--empty);border:1px solid var(--strong);border-radius:var(--r);padding:9px 11px}
 .aviso + .aviso{margin-top:6px}
 /* editor de plano ("Plano completo"): el plano ocupa el alto que sobra y el panel queda fijo abajo */
-.plan-editor .plano-grid{grid-auto-rows:clamp(30px, calc((100vh - 440px) / var(--filas, 9)), 46px)}
-@supports (height:100dvh){.plan-editor .plano-grid{grid-auto-rows:clamp(30px, calc((100dvh - 440px) / var(--filas, 9)), 46px)}}
+.plan-editor .plano-grid{grid-auto-rows:clamp(30px, calc((100vh - var(--reserva, 440px)) / var(--filas, 9)), 46px)}
+@supports (height:100dvh){.plan-editor .plano-grid{grid-auto-rows:clamp(30px, calc((100dvh - var(--reserva, 440px)) / var(--filas, 9)), 46px)}}
 .pie-fijo{position:sticky;bottom:0;z-index:2;margin-top:auto;display:flex;flex-direction:column;gap:8px;
   background:var(--paper);padding:8px 0 calc(8px + env(safe-area-inset-bottom));box-shadow:0 -10px 10px -10px rgba(0,0,0,.35)}
 .panel-fila{display:flex;align-items:baseline;gap:10px}
 .panel-fila .panel-sub{margin:0}
 .etiqueta-campo{align-self:center;font-size:14px;font-weight:600;color:var(--soft);white-space:nowrap}
 .panel .agregar input{max-width:90px}
+/* alerta de confirmación a pantalla completa */
+.modal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;
+  padding:20px calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left))}
+.modal-caja{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;
+  display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.modal-caja h2{margin:0;font-size:21px;font-weight:800;letter-spacing:-.01em}
+.modal-caja p{margin:0;font-size:15px;color:var(--soft)}
+.modal-botones{display:flex;gap:10px;margin-top:8px}
+.modal-botones button{flex:1;padding:14px 8px;font-size:16px;font-weight:700;border-radius:var(--r);cursor:pointer;
+  border:1.5px solid var(--strong);background:var(--card)}
+.modal-botones .modal-aceptar{background:var(--red);border-color:var(--red);color:#fff}
+
+/* botón que indica que ya se puede avanzar (por ejemplo "Terminar y repartir" con todo cargado) */
+.alt button.listo{background:var(--pine);border-color:var(--pine);color:var(--pineink)}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

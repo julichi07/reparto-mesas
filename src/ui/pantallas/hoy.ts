@@ -19,6 +19,7 @@ export function crearHoy(ctx: Ctx): Pantalla {
   const $cuenta = h("span", { class: "lab" });
   // aviso (no bloquea): si hay demasiados cubiertos por camarero, lo más probable es que falte anotar a alguien
   const $dotacion = h("div", { class: "aviso", role: "status", hidden: true });
+  const $irACargar = h("button", { type: "button", class: "wide", onclick: () => ctx.ir("carga") }, "Cargar cubiertos") as HTMLButtonElement;
   const $repartir = h("button", { type: "button", class: "wide" }, "Repartir mesas") as HTMLButtonElement;
   $repartir.addEventListener("click", () => conEspera($repartir, "Repartiendo…", () => ctx.ir("resultado")));
   const $nombre = h("input", {
@@ -128,9 +129,12 @@ export function crearHoy(ctx: Ctx): Pantalla {
     const activas = unidadesActivas(j, ctx.ix);
     const cubiertos = activas.reduce((a, u) => a + u.cub, 0);
     const sinCargar = ctx.ix.orden.filter((e) => valorDe(j, e) === null && idsDeUnidad(j, e)[0] === e).length;
-    $lede.textContent =
-      `${cubiertos} cubiertos en ${activas.length} ${activas.length === 1 ? "mesa" : "mesas"} en uso.` +
-      (sinCargar ? ` Las ${sinCargar} mesas sin cargar quedan afuera.` : "");
+    // sin cubiertos cargados no hay nada que repartir: se ofrece ir a cargarlos
+    $lede.textContent = activas.length
+      ? `${cubiertos} cubiertos en ${activas.length} ${activas.length === 1 ? "mesa" : "mesas"} en uso.` +
+        (sinCargar ? ` Las ${sinCargar} mesas sin cargar quedan afuera.` : "")
+      : "Todavía no hay cubiertos cargados.";
+    $irACargar.hidden = activas.length > 0;
 
     const hoy = anotados();
     $campo.hidden = ctx.camareros.length === 0;
@@ -159,20 +163,27 @@ export function crearHoy(ctx: Ctx): Pantalla {
     pintarSugerencias();
   }
 
+  // se vuelve a donde se vino: al menú (si se entró con "Repartir") o a la carga de cubiertos
+  let destino: "menu" | "carga" = "menu";
+  const $volver = h("button", { type: "button", class: "back" }, "← Menú") as HTMLButtonElement;
+  $volver.addEventListener("click", () => ctx.ir(destino));
+
   const el = h(
     "section",
     { class: "step" },
-    h("div", { class: "topbar" }, h("button", { type: "button", class: "back", onclick: () => ctx.ir("carga") }, "← Volver al salón"), $cuenta),
+    h("div", { class: "topbar" }, $volver, $cuenta),
     h("div", {}, h("h1", {}, "¿Quiénes trabajan hoy?"), $lede),
     $campo,
     $titAnotados,
     $anotados,
-    h("div", { class: "acciones" }, $dotacion, $repartir),
+    h("div", { class: "acciones" }, $dotacion, $irACargar, $repartir),
   );
 
   return {
     el,
     entrar() {
+      destino = ctx.anterior === "menu" ? "menu" : "carga";
+      $volver.textContent = destino === "menu" ? "← Menú" : "← Volver a la carga";
       $nombre.value = "";
       abierto = false;
       resaltada = 0;

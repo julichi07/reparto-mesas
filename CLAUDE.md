@@ -11,7 +11,17 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
 
 - `npm test` (vitest; ~11 s, tiene tests pesados del solver), `npm run typecheck`, `npm run build`
 - Servidor de desarrollo: `preview_start` con la config `reparto-mesas` de `.claude/launch.json` (puerto 5173)
-- No es un repositorio git todavía (hace falta `git init` antes de subir a Vercel)
+
+## Publicación y git
+
+- Está publicada en **GitHub Pages**: https://julichi07.github.io/reparto-mesas/ (repositorio público
+  `julichi07/reparto-mesas`). `.github/workflows/publicar.yml` corre los tests, compila y publica en cada
+  push a `main`; si algo falla no se publica nada. **No subir nada (`git push`) sin que el usuario lo pida.**
+- **Privacidad (pedido explícito):** nada que vincule al usuario más allá de su nombre de usuario de GitHub.
+  Los commits usan una identidad neutra configurada en el repo (`reparto-mesas <noreply@reparto-mesas.invalid>`):
+  no poner su mail ni su nombre en commits, archivos ni mensajes. El historial se rehízo una vez para esto.
+- Los datos (camareros, historial, jornada) viven en el `localStorage` de cada navegador: la copia publicada
+  arranca vacía en cada dispositivo. Por eso importa la copia de seguridad (pendiente).
 
 ## Estructura
 
@@ -21,8 +31,17 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
 - `src/solver/`: `repartir.ts` (recocido simulado), `config.ts` (**todos los pesos**), `asignar.ts`
   (rotación: algoritmo húngaro sobre el historial), `columnas.ts`, `dotacion.ts`, `rng.ts`
 - `src/storage/store.ts`: persistencia versionada + exportar/importar (**sin botones todavía**)
-- `src/ui/`: `app.ts` (contexto y navegación), `pantallas/` (menu, inicio, carga, hoy, resultado, plano,
-  camareros), `confirmar.ts` (segundo toque, reemplaza a `confirm()`), `editarPlano.ts`, `espera.ts`
+- `src/ui/`: `app.ts` (contexto y navegación), `pantallas/` (menu, carga, hoy, resultado, plano, camareros),
+  `modal.ts` (alerta a pantalla completa para confirmar; reemplaza a `confirm()`), `confirmar.ts` (segundo
+  toque, solo para "Sacar" un camarero), `editarPlano.ts`, `espera.ts`
+
+## Flujo de pantallas
+
+Menú → **Repartir** (va directo a "¿Quiénes trabajan hoy?", `hoy`) · **Plano** (editor; desde ahí
+"Cargar cubiertos →" abre la carga) · **Camareros**. La carga (`carga`) tiene "Editar plano" (editor ampliado,
+vuelve a la carga) y "Terminar y repartir" (→ `hoy` → `resultado`). Al cargar el 100% de las mesas **no** se
+cambia de pantalla: pasar a repartir es una decisión aparte. No existe una pantalla intermedia de inicio.
+La carga y el editor tienen "Deshacer"; borrar mesa/columna y reiniciar el plano piden confirmar con `modal.ts`.
 - `tests/`: incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
   `fixtures/generar-golden.mjs`)
 
@@ -52,7 +71,7 @@ es lo que muestra la carga bajo el nombre de la mesa). Una **posición** en el c
 
 ## Convenciones de trabajo
 
-- **No usar `confirm()`** (el navegador del usuario lo bloquea y la acción nunca corre). Usar `conConfirmacion`.
+- **No usar `confirm()`** (el navegador del usuario lo bloquea y la acción nunca corre). Usar `pedirConfirmacion` (`modal.ts`).
 - Al probar en el navegador **no anular** `window.confirm` ni nada nativo: se prueba el comportamiento real.
 - Probar en viewport móvil (375×812 y 360×640). Limpiar `localStorage` (`reparto-mesas:*`) al terminar.
 - Las capturas del navegador a veces llegan atrasadas: repetirlas antes de sacar conclusiones.
@@ -62,7 +81,7 @@ es lo que muestra la carga bajo el nombre de la mesa). Una **posición** en el c
 
 1. **Duda abierta:** si hace falta marcar las zonas a mano cuando cambie el salón.
 2. **Copia de seguridad:** botones de exportar/importar (la lógica está en `store.ts`).
-3. **Deploy a Vercel + PWA** (uso sin señal). Requiere `git init` y cuenta del usuario.
+3. **PWA** (uso sin señal en el salón). El deploy ya está hecho (ver "Publicación y git").
 4. **Salón exterior** (esperando el relevamiento; el modelo ya admite varios salones).
 5. UX móvil: barra fija abajo con Atrás/Siguiente; botones de la columna izquierda de la carga miden ~29 px
    (menos que los 44 px recomendados); mover "Separar"/"Terminar" a un menú "⋯".

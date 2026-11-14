@@ -7,7 +7,6 @@ import { hoyISO } from "./formato";
 import { crearCamareros } from "./pantallas/camareros";
 import { crearCarga } from "./pantallas/carga";
 import { crearHoy } from "./pantallas/hoy";
-import { crearInicio } from "./pantallas/inicio";
 import { crearMenu } from "./pantallas/menu";
 import { crearPlano } from "./pantallas/plano";
 import { crearResultado } from "./pantallas/resultado";
@@ -76,7 +75,6 @@ export function crearApp(raiz: HTMLElement): void {
   };
 
   pantallas.set("menu", crearMenu(ctx));
-  pantallas.set("inicio", crearInicio(ctx));
   pantallas.set("carga", crearCarga(ctx));
   pantallas.set("hoy", crearHoy(ctx));
   pantallas.set("resultado", crearResultado(ctx));

@@ -4,11 +4,11 @@ import { ROTACION } from "../../solver/config";
 import { avisoDeDotacion } from "../../solver/dotacion";
 import { repartir } from "../../solver/repartir";
 import type { Camarero, EntradaHistorial } from "../../storage/store";
-import { conConfirmacion } from "../confirmar";
 import type { Ctx, Pantalla } from "../contexto";
 import { h, vaciar } from "../dom";
 import { conEspera } from "../espera";
 import { COLORES, textoMesas } from "../formato";
+import { pedirConfirmacion } from "../modal";
 import { dibujarPlano } from "../plano-vista";
 
 interface Bloque {
@@ -38,10 +38,12 @@ export function crearResultado(ctx: Ctx): Pantalla {
     }),
   );
   const $nuevo = h("button", { type: "button", class: "danger" }, "Empezar de nuevo") as HTMLButtonElement;
-  conConfirmacion($nuevo, { texto: "Tocá de nuevo: se borran los cubiertos" }, () => {
-    ctx.nuevaJornada();
-    ctx.ir("carga");
-  });
+  $nuevo.addEventListener("click", () =>
+    pedirConfirmacion({ titulo: "¿Empezar de nuevo?", texto: "Se borran los cubiertos cargados.", aceptar: "Empezar de nuevo" }, () => {
+      ctx.nuevaJornada();
+      ctx.ir("carga");
+    }),
+  );
 
   /** Repartos anteriores del mismo salón, del más reciente al más viejo, sin contar el de hoy. */
   function anteriores(): EntradaHistorial[] {

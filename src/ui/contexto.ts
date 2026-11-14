@@ -3,7 +3,7 @@ import type { Jornada } from "../domain/jornada";
 import type { Etiqueta, IndicePlano, Plano } from "../domain/plano";
 import type { Store } from "../storage/store";
 
-export type NombrePantalla = "menu" | "inicio" | "carga" | "hoy" | "resultado" | "plano" | "camareros";
+export type NombrePantalla = "menu" | "carga" | "hoy" | "resultado" | "plano" | "camareros";
 
 /** Estado compartido entre pantallas. Las pantallas lo leen en el momento de usarlo,
     porque el plano puede cambiar mientras la app está abierta. */

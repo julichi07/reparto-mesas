@@ -8,20 +8,26 @@ import {
   unir,
   unirConAnterior,
   valorDe,
+  type Jornada,
 } from "../../domain/jornada";
 import { agregarAdicional, agregarPosicion, borrarMesa, ErrorPlano, mesaTrasBorrar } from "../../domain/edicion";
 import { planoInicial, type Etiqueta, type Salon } from "../../domain/plano";
-import { conConfirmacion } from "../confirmar";
 import type { Ctx, Pantalla } from "../contexto";
 import { h, vaciar } from "../dom";
 import { editarPlano } from "../editarPlano";
 import { etiquetaUnidad } from "../formato";
+import { pedirConfirmacion } from "../modal";
 import { dibujarPlano } from "../plano-vista";
 import { crearTeclado } from "../teclado";
+
+/** Cuántos pasos se pueden deshacer. */
+const MAX_DESHACER = 40;
 
 export function crearCarga(ctx: Ctx): Pantalla {
   let buf = "";
   let fresco = true; // el primer dígito reemplaza el valor que se ve
+  // Estados anteriores de la jornada (incluye el plano), para "Deshacer". Se vacía al entrar a la pantalla.
+  const pila: Jornada[] = [];
 
   const $prog = h("span", { class: "prog" });
   const $num = h("div", { class: "mesanum" });
@@ -29,19 +35,42 @@ export function crearCarga(ctx: Ctx): Pantalla {
   const $mini = h("div");
   const $visor = h("span", { class: "val ph" }, "0");
   const $atras = h("button", { type: "button", class: "sec", onclick: retroceder }, "← Atrás") as HTMLButtonElement;
+  const $siguiente = h("button", { type: "button", class: "pri", onclick: avanzar }, "Siguiente →") as HTMLButtonElement;
   const $unir = h("button", { type: "button", onclick: unirConSiguiente }, "Unir con siguiente") as HTMLButtonElement;
   const $unirAnterior = h("button", { type: "button", onclick: unirConLaAnterior }, "Unir con anterior") as HTMLButtonElement;
   const $separar = h("button", { type: "button", onclick: separarUnidad }, "Separar") as HTMLButtonElement;
+  const $deshacer = h("button", { type: "button", class: "back", onclick: deshacer }, "Deshacer") as HTMLButtonElement;
+  const $terminar = h("button", { type: "button", onclick: () => { guardarBuffer(); ctx.ir("hoy"); } }, "Terminar y repartir") as HTMLButtonElement;
 
   let aviso = "";
   const $aviso = h("div", { class: "aviso", role: "alert", hidden: true });
 
   const actual = (): Etiqueta => ctx.jornada.actual ?? ctx.ix.orden[0]!;
 
+  /** Guarda el estado actual para poder volver a él con "Deshacer". */
+  function recordar(): void {
+    pila.push(ctx.jornada);
+    if (pila.length > MAX_DESHACER) pila.shift();
+  }
+
+  function deshacer(): void {
+    const anterior = pila.pop();
+    if (!anterior) return;
+    ctx.guardarJornada(anterior);
+    const v = valorDe(ctx.jornada, actual());
+    buf = v === null ? "" : String(v);
+    fresco = true;
+    aviso = "";
+    pintar();
+  }
+
   function guardarBuffer(): void {
     if (buf === "") return;
     const n = parseInt(buf, 10);
-    if (Number.isFinite(n) && n >= 0) ctx.guardarJornada(conValor(ctx.jornada, actual(), n));
+    if (!Number.isFinite(n) || n < 0) return;
+    if (valorDe(ctx.jornada, actual()) === n) return; // no cambió nada: no hay qué deshacer
+    recordar();
+    ctx.guardarJornada(conValor(ctx.jornada, actual(), n));
   }
 
   function irA(etiqueta: Etiqueta): void {
@@ -53,12 +82,14 @@ export function crearCarga(ctx: Ctx): Pantalla {
     pintar();
   }
 
+  /** Pasa a la mesa siguiente. En la última se queda: pasar a repartir es una decisión aparte, con
+      "Terminar y repartir", para poder revisar o corregir antes. */
   function avanzar(): void {
     guardarBuffer();
     const lista = pasos(ctx.jornada, ctx.ix);
     const i = lista.indexOf(idsDeUnidad(ctx.jornada, actual())[0]!);
     const siguiente = lista[i + 1];
-    if (siguiente === undefined) ctx.ir("hoy");
+    if (siguiente === undefined) pintar();
     else irA(siguiente);
   }
 
@@ -70,27 +101,27 @@ export function crearCarga(ctx: Ctx): Pantalla {
     if (anterior !== undefined) irA(anterior);
   }
 
-  function unirConSiguiente(): void {
+  function aplicarUnion(nueva: (j: Jornada) => Jornada): void {
     guardarBuffer();
-    const j = unir(ctx.jornada, ctx.ix, actual());
+    recordar();
+    const j = nueva(ctx.jornada);
     ctx.guardarJornada(j);
     const v = valorDe(j, actual());
     buf = v === null ? "" : String(v);
     fresco = true;
     pintar();
+  }
+
+  function unirConSiguiente(): void {
+    aplicarUnion((j) => unir(j, ctx.ix, actual()));
   }
 
   function unirConLaAnterior(): void {
-    guardarBuffer();
-    const j = unirConAnterior(ctx.jornada, ctx.ix, actual());
-    ctx.guardarJornada(j);
-    const v = valorDe(j, actual());
-    buf = v === null ? "" : String(v);
-    fresco = true;
-    pintar();
+    aplicarUnion((j) => unirConAnterior(j, ctx.ix, actual()));
   }
 
   function separarUnidad(): void {
+    recordar();
     ctx.guardarJornada(separar(ctx.jornada, actual()));
     buf = "";
     fresco = true;
@@ -102,11 +133,13 @@ export function crearCarga(ctx: Ctx): Pantalla {
      guardan por número de mesa y el cambio puede renumerar. */
   function editarMesas(operacion: (s: Salon) => Salon, mesaFinal: (nuevo: Salon) => Etiqueta | null): void {
     guardarBuffer();
+    recordar();
     try {
       const { salon } = editarPlano(ctx, operacion);
       irA(mesaFinal(salon) ?? ctx.ix.orden[0]!);
     } catch (e) {
       if (!(e instanceof ErrorPlano)) throw e;
+      pila.pop(); // no cambió nada
       aviso = e.message;
       pintar();
     }
@@ -137,35 +170,43 @@ export function crearCarga(ctx: Ctx): Pantalla {
   });
 
   const $borrar = h("button", { type: "button", class: "danger" }, "Borrar mesa") as HTMLButtonElement;
-  conConfirmacion($borrar, { texto: "¿Seguro? Tocá de nuevo", necesita: () => valorDe(ctx.jornada, actual()) !== null }, () => {
+  $borrar.addEventListener("click", () => {
     const etiqueta = actual();
-    const antes = ctx.ix.salon;
-    editarMesas(
-      (s) => borrarMesa(s, etiqueta),
-      (n) => mesaTrasBorrar(antes, n, etiqueta),
-    );
+    pedirConfirmacion({ titulo: `¿Borrar la mesa ${etiqueta}?`, texto: "Se borra del plano, con sus cubiertos.", aceptar: "Borrar" }, () => {
+      const antes = ctx.ix.salon;
+      editarMesas(
+        (s) => borrarMesa(s, etiqueta),
+        (n) => mesaTrasBorrar(antes, n, etiqueta),
+      );
+    });
   });
 
   const $sinUsar = h("button", { type: "button" }, "Sin usar") as HTMLButtonElement;
   $sinUsar.addEventListener("click", () => {
+    if (valorDe(ctx.jornada, actual()) !== 0) {
+      recordar();
+      ctx.guardarJornada(conValor(ctx.jornada, actual(), 0));
+    }
     buf = "0";
-    ctx.guardarJornada(conValor(ctx.jornada, actual(), 0));
     avanzar();
   });
 
   // Igual que "Volver al plano base" del editor: deja el plano como al empezar el día (numeración,
   // mesas partidas y redondas) y sin cubiertos ni uniones, porque el plano base no tiene relación
-  // mesa a mesa con el de hoy. Pide un segundo toque si hay algo cargado.
+  // mesa a mesa con el de hoy.
   const $reiniciar = h("button", { type: "button", class: "danger" }, "Reiniciar plano") as HTMLButtonElement;
-  conConfirmacion($reiniciar, { texto: "Se borra la carga: tocá de nuevo", necesita: () => ctx.hayCarga() }, () => {
-    const base = planoInicial().salones[0]!;
-    const id = ctx.ix.salon.id;
-    ctx.guardarPlano({ ...ctx.plano, salones: ctx.plano.salones.map((s) => (s.id === id ? { ...base, id, nombre: s.nombre } : s)) }, new Map());
-    buf = "";
-    irA(ctx.ix.orden[0]!);
+  $reiniciar.addEventListener("click", () => {
+    pedirConfirmacion({ titulo: "¿Reiniciar el plano?", texto: "Vuelve al plano base y se borran los cubiertos cargados.", aceptar: "Reiniciar" }, () => {
+      recordar();
+      const base = planoInicial().salones[0]!;
+      const id = ctx.ix.salon.id;
+      ctx.guardarPlano({ ...ctx.plano, salones: ctx.plano.salones.map((s) => (s.id === id ? { ...base, id, nombre: s.nombre } : s)) }, new Map());
+      buf = "";
+      irA(ctx.ix.orden[0]!);
+    });
   });
 
-  const $planoCompleto = h("button", { type: "button", onclick: () => { guardarBuffer(); ctx.ir("plano"); } }, "Plano completo");
+  const $editarPlano = h("button", { type: "button", onclick: () => { guardarBuffer(); ctx.ir("plano"); } }, "Editar plano");
 
   // Columna de botones a la izquierda del plano: lo que se usa mesa a mesa, a mano y sin bajar
   // la vista. Primero lo de la carga; después, separado, lo que cambia el plano.
@@ -200,15 +241,21 @@ export function crearCarga(ctx: Ctx): Pantalla {
         cubiertos += v;
       }
     }
-    $prog.textContent = `${cargadas} de ${ix.orden.length} mesas · ${cubiertos} cubiertos`;
+    $prog.textContent = `${cargadas}/${ix.orden.length} mesas · ${cubiertos} cub.`;
 
     $visor.textContent = buf !== "" ? buf : "0";
     $visor.classList.toggle("ph", buf === "");
 
+    const lista = pasos(j, ix);
+    const esUltimo = lista.indexOf(ids[0]!) === lista.length - 1;
+    $siguiente.textContent = esUltimo ? "Guardar" : "Siguiente →";
+    $terminar.classList.toggle("listo", cargadas === ix.orden.length); // todo cargado: se puede repartir
+
     $unir.disabled = candidataAUnir(j, ix, actual()) === null;
     $unirAnterior.disabled = candidataAnterior(j, ix, actual()) === null;
     $separar.disabled = ids.length < 2;
-    $atras.disabled = pasos(j, ix).indexOf(ids[0]!) <= 0;
+    $atras.disabled = lista.indexOf(ids[0]!) <= 0;
+    $deshacer.disabled = pila.length === 0;
     $aviso.hidden = !aviso;
     $aviso.textContent = aviso;
     pintarMini(new Set(ids));
@@ -219,13 +266,15 @@ export function crearCarga(ctx: Ctx): Pantalla {
     $mini.append(
       dibujarPlano(ctx.ix, "mini", (m) => {
         const v = valorDe(ctx.jornada, m.etiqueta);
-        const clase = activas.has(m.etiqueta) ? "act" : v === null ? "" : v > 0 ? "hecha" : "cero";
+        const estado = activas.has(m.etiqueta) ? "act" : v === null ? "" : v > 0 ? "hecha" : "cero";
+        // las unidas llevan siempre su aro, estén seleccionadas o no
+        const unida = idsDeUnidad(ctx.jornada, m.etiqueta).length > 1 ? " unida" : "";
         return h(
           "button",
           {
             type: "button",
-            class: clase,
-            "aria-label": "Ir a la mesa " + m.etiqueta,
+            class: (estado + unida).trim(),
+            "aria-label": "Ir a la mesa " + m.etiqueta + (unida ? " (unida)" : ""),
             onclick: () => {
               guardarBuffer();
               irA(idsDeUnidad(ctx.jornada, m.etiqueta)[0]!);
@@ -258,6 +307,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
   // Delete o Esc borran todo y Enter pasa a la mesa siguiente.
   document.addEventListener("keydown", (e) => {
     if (!el.classList.contains("on") || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (document.querySelector(".modal")) return; // con una alerta abierta, el teclado es de la alerta
     const destino = e.target as HTMLElement | null;
     if (destino && (destino.tagName === "INPUT" || destino.tagName === "TEXTAREA")) return;
     if (/^[0-9]$/.test(e.key)) escribirDigito(e.key);
@@ -272,7 +322,13 @@ export function crearCarga(ctx: Ctx): Pantalla {
   const el = h(
     "section",
     { class: "step" },
-    h("div", { class: "topbar" }, h("button", { type: "button", class: "back", onclick: () => { guardarBuffer(); ctx.ir("inicio"); } }, "← Salir"), $prog),
+    h(
+      "div",
+      { class: "topbar" },
+      h("button", { type: "button", class: "back", onclick: () => { guardarBuffer(); ctx.ir("menu"); } }, "← Salir"),
+      $deshacer,
+      $prog,
+    ),
     h("div", { class: "mesahead" }, h("div", { class: "txt" }, $num, $sub, $lateral), $mini),
     h("div", { class: "visor" }, $visor, h("span", { class: "lab" }, "cubiertos")),
     teclado,
@@ -280,20 +336,15 @@ export function crearCarga(ctx: Ctx): Pantalla {
     h(
       "div",
       { class: "acciones" },
-      h("div", { class: "nav" }, $atras, h("button", { type: "button", class: "pri", onclick: avanzar }, "Siguiente →")),
-      h(
-        "div",
-        { class: "alt" },
-        $separar,
-        $planoCompleto,
-        h("button", { type: "button", onclick: () => { guardarBuffer(); ctx.ir("hoy"); } }, "Terminar y repartir"),
-      ),
+      h("div", { class: "nav" }, $atras, $siguiente),
+      h("div", { class: "alt" }, $separar, $editarPlano, $terminar),
     ),
   );
 
   return {
     el,
     entrar() {
+      pila.length = 0; // lo que se puede deshacer es de esta visita: el plano pudo cambiar mientras tanto
       irA(actual());
     },
   };
