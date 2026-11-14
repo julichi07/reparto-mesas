@@ -135,7 +135,7 @@ export function crearPlano(ctx: Ctx): Pantalla {
         boton(
           "Borrar mesa",
           () =>
-            pedirConfirmacion({ titulo: `¿Borrar la mesa ${etiqueta}?`, texto: "Se borra del plano, con sus cubiertos.", aceptar: "Borrar" }, () =>
+            pedirConfirmacion({ titulo: `¿Borrar la mesa ${etiqueta}?`, aceptar: "Borrar" }, () =>
               aplicar(
                 (s) => borrarMesa(s, etiqueta),
                 (n) => {
@@ -171,7 +171,7 @@ export function crearPlano(ctx: Ctx): Pantalla {
         boton(
           "Borrar columna",
           () =>
-            pedirConfirmacion({ titulo: `¿Borrar la columna ${col + 1}?`, texto: `Se borran sus ${c.posiciones.flat().length} mesas, con sus cubiertos.`, aceptar: "Borrar" }, () =>
+            pedirConfirmacion({ titulo: `¿Borrar la columna ${col + 1}?`, aceptar: "Borrar" }, () =>
               aplicar((s) => borrarColumna(s, col), (n) => ({ tipo: "columna", col: columnaTrasBorrar(n, col) })),
             ),
           { peligro: true },
@@ -196,7 +196,7 @@ export function crearPlano(ctx: Ctx): Pantalla {
   const $base = boton(
     "Reiniciar plano",
     () =>
-      pedirConfirmacion({ titulo: "¿Reiniciar el plano?", texto: "Vuelve al plano base y se borran los cubiertos cargados.", aceptar: "Reiniciar" }, () =>
+      pedirConfirmacion({ titulo: "¿Reiniciar el plano?", aceptar: "Reiniciar" }, () =>
         aplicar(() => planoInicial().salones[0]!, null, { descartarCarga: true }),
       ),
     { peligro: true },

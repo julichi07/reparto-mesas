@@ -1,7 +1,6 @@
 import { unidadesActivas, valorDe, type Unidad } from "../../domain/jornada";
 import { asignar } from "../../solver/asignar";
 import { ROTACION } from "../../solver/config";
-import { avisoDeDotacion } from "../../solver/dotacion";
 import { repartir } from "../../solver/repartir";
 import type { Camarero, EntradaHistorial } from "../../storage/store";
 import type { Ctx, Pantalla } from "../contexto";
@@ -39,7 +38,7 @@ export function crearResultado(ctx: Ctx): Pantalla {
   );
   const $nuevo = h("button", { type: "button", class: "danger" }, "Empezar de nuevo") as HTMLButtonElement;
   $nuevo.addEventListener("click", () =>
-    pedirConfirmacion({ titulo: "¿Empezar de nuevo?", texto: "Se borran los cubiertos cargados.", aceptar: "Empezar de nuevo" }, () => {
+    pedirConfirmacion({ titulo: "¿Empezar de nuevo?", aceptar: "Empezar de nuevo" }, () => {
       ctx.nuevaJornada();
       ctx.ir("carga");
     }),
@@ -121,8 +120,6 @@ export function crearResultado(ctx: Ctx): Pantalla {
     if (resultado.some((r) => !r.unidades.length)) {
       $avisos.append(h("div", { class: "aviso" }, "Hay más camareros que mesas en uso, así que alguno queda sin mesas."));
     }
-    const dotacion = avisoDeDotacion(resultado.reduce((a, r) => a + r.cubiertos, 0), resultado.length);
-    if (dotacion) $avisos.append(h("div", { class: "aviso", role: "status" }, dotacion));
     if (previosUsados) {
       $avisos.append(
         h("div", { class: "aviso" }, `Se tuvo en cuenta el historial: ${previosUsados} ${previosUsados === 1 ? "reparto anterior" : "repartos anteriores"}, para que las zonas roten.`),

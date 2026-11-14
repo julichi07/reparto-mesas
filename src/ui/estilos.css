@@ -79,9 +79,13 @@ h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
 .mini .celda>button.cero{box-shadow:inset 0 0 0 1px var(--strong);opacity:.5}
 .mini .celda>button.act{background:var(--pine);box-shadow:0 0 0 2px var(--pine);color:var(--pineink)}
 .mini .celda.doble>button{font-size:9px}
-/* mesas unidas: siempre con aro azul, estén o no seleccionadas, como recordatorio */
-.mini .celda>button.unida{box-shadow:inset 0 0 0 2px var(--focus)}
-.mini .celda>button.unida.act{box-shadow:0 0 0 2px var(--pine),inset 0 0 0 2px var(--focus)}
+/* mesas unidas: una sola pieza con un único aro azul por fuera, estén o no seleccionadas. Las mesas del
+   grupo se tocan (la de abajo se estira sobre el hueco) y solo los extremos cierran el aro. */
+.mini .celda.une{margin-top:-3.5px} /* 3 px de hueco + medio píxel de solape para que no se vea una costura */
+.mini .celda>button.unida{--aro-arriba:0 0 0 0 transparent;--aro-abajo:0 0 0 0 transparent;border-radius:0;
+  box-shadow:inset 2px 0 0 var(--focus),inset -2px 0 0 var(--focus),var(--aro-arriba),var(--aro-abajo)}
+.mini .celda>button.unida.ut{--aro-arriba:inset 0 2px 0 var(--focus);border-radius:3px 3px 0 0}
+.mini .celda>button.unida.ub{--aro-abajo:inset 0 -2px 0 var(--focus);border-radius:0 0 3px 3px}
 
 /* editor de plano */
 .plan .celda>button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
@@ -194,7 +198,6 @@ input[type=text]{flex:1;font-family:inherit;font-size:16px;background:var(--card
 .modal-caja{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;
   display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
 .modal-caja h2{margin:0;font-size:21px;font-weight:800;letter-spacing:-.01em}
-.modal-caja p{margin:0;font-size:15px;color:var(--soft)}
 .modal-botones{display:flex;gap:10px;margin-top:8px}
 .modal-botones button{flex:1;padding:14px 8px;font-size:16px;font-weight:700;border-radius:var(--r);cursor:pointer;
   border:1.5px solid var(--strong);background:var(--card)}

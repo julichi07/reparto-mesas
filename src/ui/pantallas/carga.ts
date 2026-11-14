@@ -5,6 +5,7 @@ import {
   idsDeUnidad,
   pasos,
   separar,
+  unidadesActivas,
   unir,
   unirConAnterior,
   valorDe,
@@ -15,6 +16,7 @@ import { planoInicial, type Etiqueta, type Salon } from "../../domain/plano";
 import type { Ctx, Pantalla } from "../contexto";
 import { h, vaciar } from "../dom";
 import { editarPlano } from "../editarPlano";
+import { conEspera } from "../espera";
 import { etiquetaUnidad } from "../formato";
 import { pedirConfirmacion } from "../modal";
 import { dibujarPlano } from "../plano-vista";
@@ -40,7 +42,15 @@ export function crearCarga(ctx: Ctx): Pantalla {
   const $unirAnterior = h("button", { type: "button", onclick: unirConLaAnterior }, "Unir con anterior") as HTMLButtonElement;
   const $separar = h("button", { type: "button", onclick: separarUnidad }, "Separar") as HTMLButtonElement;
   const $deshacer = h("button", { type: "button", class: "back", onclick: deshacer }, "Deshacer") as HTMLButtonElement;
-  const $terminar = h("button", { type: "button", onclick: () => { guardarBuffer(); ctx.ir("hoy"); } }, "Terminar y repartir") as HTMLButtonElement;
+  const $terminar = h("button", { type: "button" }, "Terminar y repartir") as HTMLButtonElement;
+  $terminar.addEventListener("click", () => {
+    guardarBuffer();
+    // Con el personal ya elegido (por ejemplo, al volver a corregir el plano después de repartir) se
+    // reparte directo; si no, se pasa a elegirlo.
+    const hayPersonal = ctx.jornada.presentes.some((id) => ctx.camareros.some((c) => c.id === id));
+    if (hayPersonal && unidadesActivas(ctx.jornada, ctx.ix).length > 0) conEspera($terminar, "Repartiendo…", () => ctx.ir("resultado"));
+    else ctx.ir("hoy");
+  });
 
   let aviso = "";
   const $aviso = h("div", { class: "aviso", role: "alert", hidden: true });
@@ -172,7 +182,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
   const $borrar = h("button", { type: "button", class: "danger" }, "Borrar mesa") as HTMLButtonElement;
   $borrar.addEventListener("click", () => {
     const etiqueta = actual();
-    pedirConfirmacion({ titulo: `¿Borrar la mesa ${etiqueta}?`, texto: "Se borra del plano, con sus cubiertos.", aceptar: "Borrar" }, () => {
+    pedirConfirmacion({ titulo: `¿Borrar la mesa ${etiqueta}?`, aceptar: "Borrar" }, () => {
       const antes = ctx.ix.salon;
       editarMesas(
         (s) => borrarMesa(s, etiqueta),
@@ -196,7 +206,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
   // mesa a mesa con el de hoy.
   const $reiniciar = h("button", { type: "button", class: "danger" }, "Reiniciar plano") as HTMLButtonElement;
   $reiniciar.addEventListener("click", () => {
-    pedirConfirmacion({ titulo: "¿Reiniciar el plano?", texto: "Vuelve al plano base y se borran los cubiertos cargados.", aceptar: "Reiniciar" }, () => {
+    pedirConfirmacion({ titulo: "¿Reiniciar el plano?", aceptar: "Reiniciar" }, () => {
       recordar();
       const base = planoInicial().salones[0]!;
       const id = ctx.ix.salon.id;
@@ -263,27 +273,41 @@ export function crearCarga(ctx: Ctx): Pantalla {
 
   function pintarMini(activas: Set<Etiqueta>): void {
     vaciar($mini);
-    $mini.append(
-      dibujarPlano(ctx.ix, "mini", (m) => {
-        const v = valorDe(ctx.jornada, m.etiqueta);
-        const estado = activas.has(m.etiqueta) ? "act" : v === null ? "" : v > 0 ? "hecha" : "cero";
-        // las unidas llevan siempre su aro, estén seleccionadas o no
-        const unida = idsDeUnidad(ctx.jornada, m.etiqueta).length > 1 ? " unida" : "";
-        return h(
-          "button",
-          {
-            type: "button",
-            class: (estado + unida).trim(),
-            "aria-label": "Ir a la mesa " + m.etiqueta + (unida ? " (unida)" : ""),
-            onclick: () => {
-              guardarBuffer();
-              irA(idsDeUnidad(ctx.jornada, m.etiqueta)[0]!);
-            },
+    const grilla = dibujarPlano(ctx.ix, "mini", (m) => {
+      const v = valorDe(ctx.jornada, m.etiqueta);
+      const estado = activas.has(m.etiqueta) ? "act" : v === null ? "" : v > 0 ? "hecha" : "cero";
+      return h(
+        "button",
+        {
+          type: "button",
+          class: estado,
+          "data-eti": m.etiqueta,
+          "aria-label": "Ir a la mesa " + m.etiqueta,
+          onclick: () => {
+            guardarBuffer();
+            irA(idsDeUnidad(ctx.jornada, m.etiqueta)[0]!);
           },
-          m.etiqueta,
-        );
-      }),
-    );
+        },
+        m.etiqueta,
+      );
+    });
+
+    // Las unidas, estén o no seleccionadas, se ven como una sola pieza con un único aro por fuera:
+    // las mesas del grupo quedan pegadas (sin separación ni aro entre ellas) y los extremos cierran el aro.
+    // Dos grupos seguidos se distinguen porque cada uno cierra su propio aro.
+    const botones = new Map<string, HTMLElement>();
+    grilla.querySelectorAll<HTMLElement>("button[data-eti]").forEach((b) => botones.set(b.dataset.eti!, b));
+    for (const unidad of ctx.jornada.uniones) {
+      unidad.forEach((etiqueta, k) => {
+        const b = botones.get(etiqueta);
+        if (!b) return;
+        b.classList.add("unida");
+        if (k === 0) b.classList.add("ub"); // la de abajo cierra el aro por abajo
+        if (k === unidad.length - 1) b.classList.add("ut"); // la de arriba, por arriba
+        if (k < unidad.length - 1) b.parentElement?.classList.add("une"); // se estira hasta tocar a la de arriba
+      });
+    }
+    $mini.append(grilla);
   }
 
   function escribirDigito(d: string): void {

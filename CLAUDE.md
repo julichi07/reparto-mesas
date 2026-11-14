@@ -29,7 +29,7 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
   plano + renumeración), `jornada.ts` (cubiertos, uniones, reglas del día), `grafo.ts` (adyacencia),
   `camareros.ts` (lista fija, búsqueda)
 - `src/solver/`: `repartir.ts` (recocido simulado), `config.ts` (**todos los pesos**), `asignar.ts`
-  (rotación: algoritmo húngaro sobre el historial), `columnas.ts`, `dotacion.ts`, `rng.ts`
+  (rotación: algoritmo húngaro sobre el historial), `columnas.ts`, `rng.ts`
 - `src/storage/store.ts`: persistencia versionada + exportar/importar (**sin botones todavía**)
 - `src/ui/`: `app.ts` (contexto y navegación), `pantallas/` (menu, carga, hoy, resultado, plano, camareros),
   `modal.ts` (alerta a pantalla completa para confirmar; reemplaza a `confirm()`), `confirmar.ts` (segundo
@@ -37,7 +37,7 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
 
 ## Flujo de pantallas
 
-Menú → **Repartir** (va directo a "¿Quiénes trabajan hoy?", `hoy`) · **Plano** (editor; desde ahí
+Menú → **Repartir** (va directo a "Personal", la pantalla `hoy` donde se elige quién trabaja) · **Plano** (editor; desde ahí
 "Cargar cubiertos →" abre la carga) · **Camareros**. La carga (`carga`) tiene "Editar plano" (editor ampliado,
 vuelve a la carga) y "Terminar y repartir" (→ `hoy` → `resultado`). Al cargar el 100% de las mesas **no** se
 cambia de pantalla: pasar a repartir es una decisión aparte. No existe una pantalla intermedia de inicio.
@@ -65,8 +65,13 @@ es lo que muestra la carga bajo el nombre de la mesa). Una **posición** en el c
   restringidos + descarte de los libres que la violan. Está testeado con cientos de días al azar.
 - Zonas = columnas 1-2, 3-4, 5-6 (preferencia, `PESOS.zona`). Mesas apagadas no cortan la adyacencia.
 - Rotación: se guarda el historial solo al **"Confirmar reparto"**.
-- Hay 1 camarero cada 20-30 cubiertos (nunca menos de 1 cada 35): el aviso "¿No faltó anotar a nadie?"
-  salta con más de 35 por camarero. **Avisos y textos de UI: cortos, sin explicaciones.**
+- Hay 1 camarero cada 20-30 cubiertos (nunca menos de 1 cada 35). Se probó un aviso por falta de personal y el
+  usuario lo rechazó por ser texto de más: no volver a ponerlo.
+- **Textos de UI: mínimos.** Título o pregunta y botones; sin subtextos explicativos, ayudas ni avisos que no
+  se hayan pedido (el usuario lo considera un vicio típico del diseño hecho con IA).
+- Con el personal ya elegido, "Terminar y repartir" de la carga reparte directo (por ejemplo al volver a
+  corregir el plano después de repartir); si no hay personal, pasa a "Personal".
+- Las mesas unidas se dibujan como una sola pieza con un único aro azul (`.unida`, `.ub`, `.ut`).
 - `unir con anterior/siguiente` toma la mesa principal de la fila contigua; las adicionales (2B) no se unen.
 
 ## Convenciones de trabajo

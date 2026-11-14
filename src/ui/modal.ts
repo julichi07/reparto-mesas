@@ -1,8 +1,8 @@
 import { h } from "./dom";
 
 export interface OpcionesConfirmacion {
+  /** La pregunta, y nada más: sin texto explicativo debajo. */
   titulo: string;
-  texto?: string;
   /** Texto del botón que ejecuta la acción. */
   aceptar: string;
 }
@@ -57,7 +57,6 @@ export function pedirConfirmacion(opciones: OpcionesConfirmacion, accion: () => 
       "div",
       { class: "modal-caja" },
       h("h2", { id: "modal-titulo" }, opciones.titulo),
-      opciones.texto ? h("p", {}, opciones.texto) : null,
       h("div", { class: "modal-botones" }, $cancelar, $aceptar),
     ),
   );

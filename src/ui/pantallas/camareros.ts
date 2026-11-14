@@ -80,7 +80,7 @@ export function crearCamareros(ctx: Ctx): Pantalla {
     "section",
     { class: "step" },
     h("div", { class: "topbar" }, h("button", { type: "button", class: "back", onclick: () => ctx.ir("menu") }, "← Menú"), $cuenta),
-    h("div", {}, h("h1", {}, "Camareros"), h("p", { class: "lede" }, "La lista fija del restorán. Cada día, antes de repartir, elegís de acá quiénes trabajan.")),
+    h("h1", {}, "Camareros"),
     h("div", { class: "agregar" }, $nuevo, h("button", { type: "button", onclick: sumar }, "Agregar")),
     $error,
     $lista,

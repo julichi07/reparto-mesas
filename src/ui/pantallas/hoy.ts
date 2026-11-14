@@ -1,6 +1,5 @@
 import { buscar, ordenados, type Camarero } from "../../domain/camareros";
 import { idsDeUnidad, unidadesActivas, valorDe } from "../../domain/jornada";
-import { avisoDeDotacion } from "../../solver/dotacion";
 import type { Ctx, Pantalla } from "../contexto";
 import { h, vaciar } from "../dom";
 import { conEspera } from "../espera";
@@ -8,7 +7,7 @@ import { conEspera } from "../espera";
 /** Cuántas sugerencias se muestran a la vez; el resto se ve escribiendo más letras. */
 const MAX_SUGERENCIAS = 6;
 
-/** Quiénes trabajan hoy. Se anotan escribiendo: a medida que se tipea se sugieren los nombres
+/** Personal de hoy. Se anotan escribiendo: a medida que se tipea se sugieren los nombres
     de la lista fija ("k" → Karen), y al tocar uno queda anotado. La lista de anotados va abajo. */
 export function crearHoy(ctx: Ctx): Pantalla {
   let abierto = false; // ¿se ven las sugerencias?
@@ -17,8 +16,6 @@ export function crearHoy(ctx: Ctx): Pantalla {
 
   const $lede = h("p", { class: "lede" });
   const $cuenta = h("span", { class: "lab" });
-  // aviso (no bloquea): si hay demasiados cubiertos por camarero, lo más probable es que falte anotar a alguien
-  const $dotacion = h("div", { class: "aviso", role: "status", hidden: true });
   const $irACargar = h("button", { type: "button", class: "wide", onclick: () => ctx.ir("carga") }, "Cargar cubiertos") as HTMLButtonElement;
   const $repartir = h("button", { type: "button", class: "wide" }, "Repartir mesas") as HTMLButtonElement;
   $repartir.addEventListener("click", () => conEspera($repartir, "Repartiendo…", () => ctx.ir("resultado")));
@@ -157,9 +154,6 @@ export function crearHoy(ctx: Ctx): Pantalla {
 
     $cuenta.textContent = hoy.length + (hoy.length === 1 ? " camarero" : " camareros");
     $repartir.disabled = hoy.length < 1 || activas.length < 1;
-    const aviso = avisoDeDotacion(cubiertos, hoy.length);
-    $dotacion.hidden = aviso === null;
-    $dotacion.textContent = aviso ?? "";
     pintarSugerencias();
   }
 
@@ -172,11 +166,11 @@ export function crearHoy(ctx: Ctx): Pantalla {
     "section",
     { class: "step" },
     h("div", { class: "topbar" }, $volver, $cuenta),
-    h("div", {}, h("h1", {}, "¿Quiénes trabajan hoy?"), $lede),
+    h("div", {}, h("h1", {}, "Personal"), $lede),
     $campo,
     $titAnotados,
     $anotados,
-    h("div", { class: "acciones" }, $dotacion, $irACargar, $repartir),
+    h("div", { class: "acciones" }, $irACargar, $repartir),
   );
 
   return {
