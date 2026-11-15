@@ -68,6 +68,7 @@ export function crearApp(raiz: HTMLElement): void {
     ir(nombre) {
       if (nombre !== enPantalla) ctx.anterior = enPantalla;
       enPantalla = nombre;
+      raiz.dataset.pantalla = nombre; // permite que una pantalla ajuste los márgenes de la página (la carga)
       pantallas.forEach((p, n) => p.el.classList.toggle("on", n === nombre));
       window.scrollTo(0, 0);
       pantallas.get(nombre)?.entrar();

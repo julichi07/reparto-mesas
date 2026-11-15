@@ -9,7 +9,8 @@ y el brief en `brief-reparto-mesas.md`. Se habla en español rioplatense.
 Node es **portable** (no está en el PATH de las sesiones): antes de cualquier comando en PowerShell,
 `$env:Path="$env:USERPROFILE\tools\node;"+$env:Path` (y `C:\Program Files\Git\cmd` para git).
 
-- `npm test` (vitest; ~11 s, tiene tests pesados del solver), `npm run typecheck`, `npm run build`
+- `npm test` (vitest; entre 25 y 70 s según la máquina: los tests del solver son pesados y el timeout está en
+  60 s en `vite.config.ts`), `npm run typecheck`, `npm run build`
 - Servidor de desarrollo: `preview_start` con la config `reparto-mesas` de `.claude/launch.json` (puerto 5173)
 
 ## Publicación y git
@@ -34,22 +35,31 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
 - `src/ui/`: `app.ts` (contexto y navegación), `pantallas/` (menu, carga, hoy, resultado, plano, camareros),
   `modal.ts` (alerta a pantalla completa para confirmar; reemplaza a `confirm()`), `confirmar.ts` (segundo
   toque, solo para "Sacar" un camarero), `editarPlano.ts`, `espera.ts`
+- `tests/` (144 tests): incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
+  `fixtures/generar-golden.mjs`), la regla de las 2 columnas y las zonas
 
 ## Flujo de pantallas
 
 Menú → **Repartir** (va directo a "Personal", la pantalla `hoy` donde se elige quién trabaja) · **Plano** (editor; desde ahí
-"Cargar cubiertos →" abre la carga) · **Camareros**. La carga (`carga`) tiene "Editar plano" (editor ampliado,
-vuelve a la carga) y "Terminar y repartir" (→ `hoy` → `resultado`). Al cargar el 100% de las mesas **no** se
-cambia de pantalla: pasar a repartir es una decisión aparte. No existe una pantalla intermedia de inicio.
-La carga y el editor tienen "Deshacer"; borrar mesa/columna y reiniciar el plano piden confirmar con `modal.ts`.
-- `tests/`: incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
-  `fixtures/generar-golden.mjs`)
+"Cargar cubiertos →" abre la carga) · **Camareros**. Al cargar el 100% de las mesas **no** se cambia de
+pantalla: en la última mesa el botón grande pasa a "Repartir →" (→ `hoy` → `resultado`, o directo si ya hay
+personal elegido). No existe una pantalla intermedia de inicio.
+
+**Carga** (de arriba hacia abajo, todo en una pantalla sin scroll): encabezado (Salir · progreso · menú ⋯),
+plano a todo el ancho, fila "Mesa N · fila N" con los cubiertos, chips (Sin usar · ← Unir · Unir → · ✎ Plano),
+zona de alto fijo que alterna teclado 3×4 (⌫: un toque borra un dígito, pulsación larga borra todo) y edición
+(Agregar / Partir / Borrar mesa, esta última sin confirmar porque Deshacer la cubre), y barra fija abajo
+(Atrás · Deshacer · Siguiente). Pulsación larga (500 ms) sobre una mesa: la selecciona y abre la edición. El menú
+⋯ tiene Separar, Editar plano (pantalla), Terminar y repartir y Reiniciar plano (con confirmación, `modal.ts`).
+El plano usa el alto que sobra: celdas de al menos 44 px de ancho y hasta 44–52 de alto; en pantallas bajas
+la altura baja (hasta 20 px) para que entre todo. El editor (`plano`) también tiene "Deshacer" y confirma al
+borrar mesa/columna y reiniciar.
 
 ## Vocabulario
 
 **Columna** = columna vertical de mesas, perpendicular al mostrador (1-9, 10-18, 20-27, 30-34, 40-44, 50-54).
 **Fila** = la altura dentro de la columna, contada desde el mostrador ("fila 1" es la pegada al mostrador;
-es lo que muestra la carga bajo el nombre de la mesa). Una **posición** en el código es una fila.
+es lo que muestra la carga junto al nombre de la mesa: "Mesa 7 · fila 7"). Una **posición** en el código es una fila.
 (El usuario a veces llamó "filas" a las columnas; ya quedó aclarado.) **Plaza** = las mesas de un camarero.
 
 ## Decisiones de dominio (no re-discutir)
@@ -81,6 +91,17 @@ es lo que muestra la carga bajo el nombre de la mesa). Una **posición** en el c
 - Probar en viewport móvil (375×812 y 360×640). Limpiar `localStorage` (`reparto-mesas:*`) al terminar.
 - Las capturas del navegador a veces llegan atrasadas: repetirlas antes de sacar conclusiones.
 - Lógica nueva = función pura en `domain/` o `solver/` con test; la UI es una capa fina.
+- Después de un `push`, el flujo de GitHub tarda 1–2 min: se verifica con la API pública
+  (`https://api.github.com/repos/julichi07/reparto-mesas/actions/runs`) y que la página responda 200.
+
+## Cómo trabajar con el usuario
+
+- Da especificaciones detalladas y concretas (a veces con criterios de aceptación). Si una pide algo
+  imposible o dos criterios chocan, **mostrar los números y preguntar antes de implementar** (pasó con la altura
+  de la carga: 44 px en todo no entra en 360×640). Si pide "decime antes de tocar nada", se explica primero.
+- Respuestas cortas y sin vueltas. Al terminar: qué se probó, qué cambió y qué quedó sin resolver.
+- Probar en el navegador a tamaño de celular antes de dar algo por terminado, y avisar de lo que no se pudo.
+- Usa la app desde el celular, en el salón, con apuro.
 
 ## Pendiente
 
@@ -88,6 +109,6 @@ es lo que muestra la carga bajo el nombre de la mesa). Una **posición** en el c
 2. **Copia de seguridad:** botones de exportar/importar (la lógica está en `store.ts`).
 3. **PWA** (uso sin señal en el salón). El deploy ya está hecho (ver "Publicación y git").
 4. **Salón exterior** (esperando el relevamiento; el modelo ya admite varios salones).
-5. UX móvil: barra fija abajo con Atrás/Siguiente; botones de la columna izquierda de la carga miden ~29 px
-   (menos que los 44 px recomendados); mover "Separar"/"Terminar" a un menú "⋯".
+5. Las celdas del plano de la carga bajan de 44 px de alto en pantallas bajas (360×640: ~21–25 px); decisión
+   acordada para que entre todo sin scroll. Los demás elementos táctiles de esa pantalla miden 44 px o más.
 6. "Probar otro reparto" solo cambia quién se queda cada bloque (la partición óptima es siempre la misma).
