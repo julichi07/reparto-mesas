@@ -29,14 +29,15 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
 - `src/domain/`: `plano.ts` (tipos, índice, validación, plano base), `edicion.ts` (operaciones puras del
   plano + renumeración), `jornada.ts` (cubiertos, uniones, reglas del día), `grafo.ts` (adyacencia),
   `camareros.ts` (lista fija, búsqueda)
-- `src/solver/`: `repartir.ts` (recocido simulado), `config.ts` (**todos los pesos**), `asignar.ts`
+- `src/solver/`: `repartir.ts` (recocido simulado), `delDia.ts` (lo que usa la app: normal y, si queda desparejo,
+  con franja), `forma.ts` (plazas cortadas y mesas colgadas), `config.ts` (**todos los pesos**), `asignar.ts`
   (rotación: algoritmo húngaro sobre el historial), `columnas.ts`, `rng.ts`
 - `src/storage/store.ts`: persistencia versionada + exportar/importar (**sin botones todavía**)
 - `src/ui/`: `app.ts` (contexto y navegación), `pantallas/` (menu, carga, hoy, resultado, plano, camareros),
   `modal.ts` (alerta a pantalla completa para confirmar; reemplaza a `confirm()`), `confirmar.ts` (segundo
   toque, solo para "Sacar" un camarero), `editarPlano.ts`, `espera.ts`
-- `tests/` (144 tests): incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
-  `fixtures/generar-golden.mjs`), la regla de las 2 columnas y las zonas
+- `tests/` (153 tests): incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
+  `fixtures/generar-golden.mjs`), la regla de las 2 columnas, las zonas y la forma de las plazas (`forma.test.ts`)
 
 ## Flujo de pantallas
 
@@ -73,7 +74,15 @@ es lo que muestra la carga junto al nombre de la mesa: "Mesa 7 · fila 7"). Una 
 - **Regla dura (nunca se rompe):** un camarero no tiene mesas en más de **2 columnas**. Se garantiza con
   un reparto de partida válido (programación dinámica) + movimientos prohibidos en los intentos
   restringidos + descarte de los libres que la violan. Está testeado con cientos de días al azar.
-- Zonas = columnas 1-2, 3-4, 5-6 (preferencia, `PESOS.zona`). Mesas apagadas no cortan la adyacencia.
+- **Regla dura:** en cada columna, las mesas de un camarero van seguidas (nunca mesas de otro en el medio).
+  Si la plaza ocupa dos columnas, los tramos van a la par (preferencia, `PESOS.aLaPar`). Medidas en `solver/forma.ts`.
+- **Prioridad que eligió el usuario:** primero cubiertos parejos, después la forma. Un escalonado parejo le gana a
+  una mesa suelta desparejo, y una mesa suelta parejo le gana a un escalonado desparejo.
+- Zonas = **1-10** y **20-50** (`ZONAS`, preferencia `PESOS.zona`). Suele haber 3 camareros en 1-10 y 3-4 en 20-50.
+- **Franja del fondo** (`FRANJA`, `solver/delDia.ts`): si el reparto normal pasa de 5 cubiertos de diferencia, un
+  camarero puede tener 3 columnas solo con las últimas 3 filas de 1, 10 y 20. En 30-40-50 no (mucha distancia),
+  y nunca de la 20 a la 50.
+- Mesas apagadas no cortan la adyacencia. En el servicio no hay mesas sin usar: toda mesa tiene cubiertos.
 - Rotación: se guarda el historial solo al **"Confirmar reparto"**.
 - Hay 1 camarero cada 20-30 cubiertos (nunca menos de 1 cada 35). Se probó un aviso por falta de personal y el
   usuario lo rechazó por ser texto de más: no volver a ponerlo.
@@ -96,6 +105,9 @@ es lo que muestra la carga junto al nombre de la mesa: "Mesa 7 · fila 7"). Una 
 
 ## Cómo trabajar con el usuario
 
+- Para decidir reglas del reparto sirve plantearle situaciones: 2-3 repartos del mismo día dibujados, con cubiertos
+  por mesa y totales, y que elija. Si sigue desde el celular (Remote Control), mandar los dibujos como imagen
+  (`SendUserFile`): los paneles de la app de escritorio no se ven ahí.
 - Da especificaciones detalladas y concretas (a veces con criterios de aceptación). Si una pide algo
   imposible o dos criterios chocan, **mostrar los números y preguntar antes de implementar** (pasó con la altura
   de la carga: 44 px en todo no entra en 360×640). Si pide "decime antes de tocar nada", se explica primero.

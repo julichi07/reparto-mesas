@@ -1,7 +1,7 @@
 import { unidadesActivas, valorDe, type Unidad } from "../../domain/jornada";
 import { asignar } from "../../solver/asignar";
 import { ROTACION } from "../../solver/config";
-import { repartir } from "../../solver/repartir";
+import { repartirDelDia } from "../../solver/delDia";
 import type { Camarero, EntradaHistorial } from "../../storage/store";
 import type { Ctx, Pantalla } from "../contexto";
 import { h, vaciar } from "../dom";
@@ -61,7 +61,7 @@ export function crearResultado(ctx: Ctx): Pantalla {
     const activas = unidadesActivas(j, ctx.ix);
     if (!presentes.length || !activas.length) return false;
 
-    const grupos = repartir(activas, presentes.length, semilla, ctx.ix);
+    const grupos = repartirDelDia(activas, presentes.length, semilla, ctx.ix);
     if (!grupos) return false;
     const bloques = grupos.map((idx) => idx.map((u) => activas[u]!));
 

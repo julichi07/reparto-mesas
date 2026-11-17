@@ -3,7 +3,8 @@ import type { Unidad } from "../domain/jornada";
 import type { IndicePlano, Mesa } from "../domain/plano";
 import {
   ATENUACION_SI_IMPOSIBLE,
-  COLUMNAS_POR_ZONA,
+  zonaDeColumna,
+  FRANJA,
   GRANDE,
   INTENTOS,
   INTENTOS_RESTRINGIDOS,
@@ -26,6 +27,8 @@ export function repartir(
   ix: IndicePlano,
   pesos: Pesos = PESOS,
   intentos: number = INTENTOS,
+  /** Permite la excepción de la franja (ver FRANJA en config.ts). */
+  conFranja = false,
 ): number[][] | null {
   const n = unidades.length;
   if (k < 1 || !n) return null;
@@ -41,7 +44,7 @@ export function repartir(
   const gr = unidades.map((u) => (u.cub >= GRANDE ? 1 : 0));
   const mediaG = gr.reduce((a: number, b) => a + b, 0) / k;
   const celdas: Mesa[][] = unidades.map((u) => u.ids.map((id) => ix.porEtiqueta.get(id)!));
-  const zonaDe = (col: number): number => Math.floor(col / COLUMNAS_POR_ZONA);
+  const zonaDe = (col: number): number => zonaDeColumna(ix.salon.columnas[col]!.inicio, col);
   const nZonas = Math.max(...ix.mesas.map((m) => zonaDe(m.col))) + 1;
 
   // Lo que sigue es lo que más se ejecuta (el costo se recalcula en cada paso del recocido), así
@@ -70,16 +73,59 @@ export function repartir(
   const enColumna = new Int32Array(k * nColumnas); // mesas de cada bloque en cada columna
   const copia = new Int32Array(nColumnas);
 
+  // Forma de las plazas. `enOrden[j]` son las unidades de las mesas activas de la columna j, del mostrador
+  // hacia el fondo; `celdaIzq`/`celdaDer` son la unidad de la mesa de al lado (misma altura, columna
+  // contigua) de cada mesa, o -1 si ahí no hay mesa activa.
+  const unidadDe = new Map<string, number>();
+  unidades.forEach((u, i) => u.ids.forEach((id) => unidadDe.set(id, i)));
+  const enOrden: number[][] = Array.from({ length: nColumnas }, () => []);
+  for (const m of ix.mesas) {
+    const u = unidadDe.get(m.etiqueta);
+    if (u !== undefined) enOrden[m.col]!.push(u);
+  }
+  const alLado = (m: Mesa, paso: number): number => {
+    for (const v of ix.porCelda.get(m.col + paso + "," + m.pos) ?? []) {
+      const u = unidadDe.get(v.etiqueta);
+      if (u !== undefined) return u;
+    }
+    return -1;
+  };
+  const celdaIzq = celdas.map((ms) => ms.map((m) => alLado(m, -1)));
+  const celdaDer = celdas.map((ms) => ms.map((m) => alLado(m, 1)));
+  const sinParIzq = new Int32Array(k * nColumnas); // mesas del bloque cuya vecina de la izquierda es de otro
+  const sinParDer = new Int32Array(k * nColumnas);
+  let ultimoPartidos = 0; // tramos de más (plazas cortadas dentro de una columna), del último reparto evaluado
+
+  // Franjas: solo al fondo (las últimas FRANJA.filas posiciones de cada columna) y dentro de uno de los
+  // grupos de columnas de FRANJA.grupos (por número inicial: 1-10-20 o 30-40-50).
+  const alFondo = celdas.map((ms) =>
+    ms.every((m) => m.pos >= ix.salon.columnas[m.col]!.posiciones.length - FRANJA.filas),
+  );
+  const gruposFranja = FRANJA.grupos.map((inicios) =>
+    ix.salon.columnas.reduce((mascara, columna, j) => (inicios.includes(columna.inicio) ? mascara | (1 << j) : mascara), 0),
+  );
+  const fueraDelFondo = new Int32Array(k); // unidades del bloque que no están al fondo
+  const columnasDe = new Int32Array(k); // un bit por columna que toca el bloque
+
+  /** ¿El bloque x es una franja? Todas sus mesas al fondo y todas sus columnas dentro de un mismo grupo. */
+  const esFranja = (x: number): boolean =>
+    conFranja && fueraDelFondo[x] === 0 && gruposFranja.some((g) => (columnasDe[x]! & ~g) === 0);
+  let enTercera = 0; // mesas de franjas en una tercera columna (permitidas, pero cuestan), del último bloque
+
   /** Mesas del bloque x que quedan fuera de sus MAX_COLUMNAS_POR_BLOQUE columnas con más mesas.
       Es 0 si el bloque toca esas columnas o menos; y cuenta mesa por mesa (no "columnas de más")
-      para que mover una mesa a la vez ya mejore el costo y la búsqueda tenga hacia dónde ir. */
+      para que mover una mesa a la vez ya mejore el costo y la búsqueda tenga hacia dónde ir.
+      Si el bloque es una franja, las mesas de su tercera columna no cuentan acá: van a `enTercera`. */
   function desborde(x: number): number {
+    const franja = esFranja(x);
+    const permitidas = franja ? FRANJA.columnas : MAX_COLUMNAS_POR_BLOQUE;
     let total = 0;
     for (let j = 0; j < nColumnas; j++) {
       copia[j] = enColumna[x * nColumnas + j]!;
       total += copia[j]!;
     }
-    for (let i = 0; i < MAX_COLUMNAS_POR_BLOQUE; i++) {
+    enTercera = 0;
+    for (let i = 0; i < permitidas; i++) {
       let mayor = 0;
       let donde = -1;
       for (let j = 0; j < nColumnas; j++)
@@ -88,6 +134,7 @@ export function repartir(
           donde = j;
         }
       if (donde < 0) break;
+      if (i >= MAX_COLUMNAS_POR_BLOQUE) enTercera += mayor;
       total -= mayor;
       copia[donde] = 0;
     }
@@ -104,9 +151,14 @@ export function repartir(
     p0.fill(999);
     p1.fill(-99);
     enZona.fill(0);
+    sinParIzq.fill(0);
+    sinParDer.fill(0);
+    fueraDelFondo.fill(0);
+    columnasDe.fill(0);
     for (let u = 0; u < n; u++) {
       const x = a[u]!;
       c[x]! += cub[u]!;
+      if (!alFondo[u]) fueraDelFondo[x]!++;
       G[x]! += gr[u]!;
       t[x]!++;
       const cols = celdaCol[u]!;
@@ -121,16 +173,47 @@ export function repartir(
         if (pos > p1[x]!) p1[x] = pos;
         enZona[x * nZonas + zonas[i]!]!++;
         enColumna[x * nColumnas + col]!++;
+        columnasDe[x]! |= 1 << col;
+        const izq = celdaIzq[u]![i]!;
+        const der = celdaDer[u]![i]!;
+        if (izq >= 0 && a[izq] !== x) sinParIzq[x * nColumnas + col]!++;
+        if (der >= 0 && a[der] !== x) sinParDer[x * nColumnas + col]!++;
       }
     }
+    // Plazas cortadas: en cada columna, cada bloque tiene que ser un solo tramo seguido. Cuenta los tramos
+    // de más (tramos de la columna menos bloques distintos que la tocan).
+    let partidos = 0;
+    for (let j = 0; j < nColumnas; j++) {
+      const fila = enOrden[j]!;
+      let anterior = -1;
+      for (let i = 0; i < fila.length; i++) {
+        const x = a[fila[i]!]!;
+        if (x !== anterior) {
+          partidos++;
+          anterior = x;
+        }
+      }
+      for (let x = 0; x < k; x++) if (enColumna[x * nColumnas + j]! > 0) partidos--;
+    }
+    ultimoPartidos = partidos;
+    // Tramos a la par: si un bloque ocupa dos columnas contiguas, cuenta las mesas del tramo que menos
+    // sobresale que tienen al lado una mesa de otro (una mesa "colgada" lejos del resto de la plaza).
+    let colgadas = 0;
+    for (let x = 0; x < k; x++)
+      for (let j = 0; j + 1 < nColumnas; j++) {
+        const acá = x * nColumnas + j;
+        if (enColumna[acá]! > 0 && enColumna[acá + 1]! > 0) colgadas += Math.min(sinParDer[acá]!, sinParIzq[acá + 1]!);
+      }
     let bal = 0;
     let big = 0;
     let comp = 0;
     let fuera = 0;
     let exceso = 0;
+    let terceras = 0;
     for (let x = 0; x < k; x++) {
       if (!t[x]) return Infinity;
       exceso += desborde(x);
+      terceras += enTercera;
       const d = c[x]! - media;
       bal += d * d;
       const dg = G[x]! - mediaG;
@@ -144,10 +227,19 @@ export function repartir(
         total += cuenta;
         if (cuenta > mayor) mayor = cuenta;
       }
-      fuera += total - mayor;
+      if (!esFranja(x)) fuera += total - mayor; // una franja del fondo puede cruzar de zona
     }
     ultimoExceso = exceso;
-    return pesos.balance * bal + pesos.grandes * big + pesos.compacto * comp + pesos.zona * fuera + pesoColumnas * exceso;
+    return (
+      pesos.balance * bal +
+      pesos.grandes * big +
+      pesos.compacto * comp +
+      pesos.zona * fuera +
+      pesoColumnas * exceso +
+      pesos.partido * partidos +
+      pesos.aLaPar * colgadas +
+      FRANJA.costo * terceras
+    );
   }
 
   const visita = new Int32Array(n);
@@ -294,7 +386,9 @@ export function repartir(
         const mp = celdas[p]![0]!;
         const mq = celdas[q]![0]!;
         if (mp.col !== mq.col) return mp.col - mq.col;
-        return (mp.col + paridad) % 2 === 0 ? mp.pos - mq.pos : mq.pos - mp.pos;
+        // por `orden` y no por `pos`: así las mesas de una misma posición (2 y 2B) también se invierten
+        // y cada tramo queda seguido dentro de la columna
+        return (mp.col + paridad) % 2 === 0 ? mp.orden - mq.orden : mq.orden - mp.orden;
       });
       // costo de cada tramo [i, j): Infinity si toca demasiadas columnas o no es conexo
       const tramo: number[][] = Array.from({ length: n }, () => new Array<number>(n + 1).fill(Infinity));
@@ -366,7 +460,7 @@ export function repartir(
       for (let i = 0; i < n; i++) if (a[i] === x) cnt++;
       if (cnt < 2) continue;
       const dest = a[vec[Math.floor(rnd() * vec.length)]!]!;
-      if (restringido) {
+      if (restringido && !conFranja) {
         let mascara = mascaraUnidad[u]!;
         for (let i = 0; i < n; i++) if (a[i] === dest) mascara |= mascaraUnidad[i]!;
         if (cuantasColumnas(mascara) > MAX_COLUMNAS_POR_BLOQUE) continue;
@@ -377,11 +471,16 @@ export function repartir(
         continue;
       }
       const c2 = costo(a);
+      if (restringido && ((pesos.partido > 0 && ultimoPartidos > 0) || (conFranja && ultimoExceso > 0))) {
+        a[u] = x; // cortaría una plaza dentro de una columna, o le daría columnas de más: prohibido
+        continue;
+      }
       if (c2 <= c || rnd() < Math.exp((c - c2) / Math.max(T, 1e-4))) c = c2;
       else a[u] = x;
     }
     c = costo(a); // deja en `ultimoExceso` el desborde de este reparto final
-    if (factible && ultimoExceso > 0) continue; // existe uno que cumple la regla: este no sirve
+    // existe uno que cumple las reglas duras (columnas y plazas sin cortar): este no sirve
+    if (factible && (ultimoExceso > 0 || (pesos.partido > 0 && ultimoPartidos > 0))) continue;
     if (c < mejorC) {
       mejorC = c;
       mejor = [...a];

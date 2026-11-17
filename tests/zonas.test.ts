@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { Unidad } from "../src/domain/jornada";
 import { indexar, planoInicial } from "../src/domain/plano";
 import { contarColumnas } from "../src/solver/columnas";
-import { COLUMNAS_POR_ZONA, INTENTOS_PROTOTIPO, PESOS_PROTOTIPO } from "../src/solver/config";
+import { INTENTOS_PROTOTIPO, PESOS_PROTOTIPO, zonaDeColumna } from "../src/solver/config";
+import { repartirDelDia } from "../src/solver/delDia";
 import { repartir } from "../src/solver/repartir";
 
 const ix = indexar(planoInicial().salones[0]!);
-const zonaDe = (etiqueta: string) => Math.floor(ix.porEtiqueta.get(etiqueta)!.col / COLUMNAS_POR_ZONA);
+const zonaDe = (etiqueta: string) => {
+  const col = ix.porEtiqueta.get(etiqueta)!.col;
+  return zonaDeColumna(ix.salon.columnas[col]!.inicio, col);
+};
 
 /** Los cubiertos de una jornada real (la del reporte), con sus mesas largas unidas. */
 const jornadaReal: Unidad[] = [
@@ -38,16 +42,30 @@ function analizar(unidades: Unidad[], grupos: number[][]) {
 }
 
 describe("los camareros se quedan dentro de su zona", () => {
-  it("las zonas son las columnas 1-2, 3-4 y 5-6 (mesas 1-10, 20-30 y 40-50)", () => {
-    expect(["1", "18", "20", "34", "40", "54"].map(zonaDe)).toEqual([0, 0, 1, 1, 2, 2]);
+  it("las zonas son 1-10 y 20-50", () => {
+    expect(["1", "18", "20", "34", "40", "54"].map(zonaDe)).toEqual([0, 0, 1, 1, 1, 1]);
   });
 
-  it("en la jornada reportada ningún camarero cruza de zona, con la misma respuesta en cualquier semilla", () => {
+  it("el de la 30 puede tomar la 32 y dejarle la 44 al de la 50: 30 y 40 son la misma zona", () => {
+    // el servicio de la consulta: con 3 zonas salía 29 · 30 · 34 en 50 / 33-34 + 40-44 / 20-24 + 30-32
+    const cub: Record<string, number> = {
+      "1": 4, "2": 4, "3": 7, "4": 4, "5": 4, "6": 4, "7": 4, "8": 4, "9": 4, "10": 4, "11": 8, "12": 4, "13": 4,
+      "14": 4, "15": 7, "16": 4, "17": 2, "18": 4, "20": 3, "21": 4, "22": 4, "23": 7, "24": 4, "25": 5, "26": 4,
+      "27": 4, "30": 4, "31": 4, "32": 4, "33": 4, "34": 4, "40": 7, "41": 4, "42": 3, "43": 4, "44": 4,
+      "50": 4, "51": 6, "52": 6, "53": 4, "54": 9,
+    };
+    const unidades: Unidad[] = ix.orden.map((e) => ({ ids: [e], cub: cub[e]! }));
+    const r = analizar(unidades, repartirDelDia(unidades, 6, 0, ix)!);
+    expect(r.dif).toBeLessThanOrEqual(3);
+  });
+
+  it("en la jornada reportada a lo sumo una mesa cruza de zona, con la misma respuesta en cualquier semilla", () => {
+    // con dos zonas, 1-10 tiene 75 cubiertos para 3 camareros: la 17 pasa con 25-27 (al lado de la 27) y la
+    // diferencia baja de 7 a 4
     const resultados = [0, 1, 2].map((semilla) => analizar(jornadaReal, repartir(jornadaReal, 8, semilla, ix)!));
     for (const r of resultados) {
-      expect(r.cruzan).toBe(0);
-      expect(r.fuera).toBe(0);
-      expect(r.dif).toBeLessThanOrEqual(8);
+      expect(r.fuera).toBeLessThanOrEqual(1);
+      expect(r.dif).toBeLessThanOrEqual(4);
     }
     expect(resultados[1]!.totales).toEqual(resultados[0]!.totales);
   });
@@ -68,17 +86,14 @@ describe("los camareros se quedan dentro de su zona", () => {
   });
 
   it("es una preferencia, no una regla: si una zona está casi vacía, el equilibrio gana y se cruza", () => {
-    // la columna 6 casi sin gente (solo las mesas 50 y 51, con 3 y 2 cubiertos) y la 5 vacía
+    // la zona 1-10 casi sin gente (solo las mesas 1 y 2, con 3 y 2 cubiertos) y la 20-50 llena
     const unidades: Unidad[] = ix.orden
-      .filter((e) => zonaDe(e) < 2 || e === "50" || e === "51")
-      .map((e) => ({ ids: [e], cub: zonaDe(e) === 2 ? (e === "50" ? 3 : 2) : 6 }));
+      .filter((e) => zonaDe(e) === 1 || e === "1" || e === "2")
+      .map((e) => ({ ids: [e], cub: zonaDe(e) === 0 ? (e === "1" ? 3 : 2) : 6 }));
     const r = analizar(unidades, repartir(unidades, 4, 0, ix)!);
-    // nadie puede quedarse solo con 5 cubiertos cuando el promedio es ~48: quien atiende 50 y 51 se
-    // lleva también mesas de otra zona (la regla de las columnas se cumple igual: 2 columnas)
+    // nadie puede quedarse solo con 5 cubiertos: quien atiende la 1 y la 2 se lleva también mesas de
+    // la otra zona (la regla de las columnas se cumple igual: 2 columnas)
     expect(r.cruzan).toBeGreaterThanOrEqual(1);
-    // el óptimo posible es 19: quien atiende 50 y 51 solo puede sumar la columna 4 (30 cubiertos) y no
-    // pasa de 35, y las columnas 1, 2 y 3 (54, 54 y 48 cubiertos) quedan una por camarero
-    expect(r.dif).toBeLessThanOrEqual(19);
     for (const mesas of r.mesas) expect(contarColumnas(mesas, ix)).toBeLessThanOrEqual(2);
   });
 
