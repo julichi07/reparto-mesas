@@ -1,5 +1,5 @@
 import type { Camarero } from "../domain/camareros";
-import { hayCarga, jornadaAlArrancar, jornadaNueva, normalizar, remapear, salonDe } from "../domain/jornada";
+import { hayCarga, jornadaAlArrancar, jornadaNueva, normalizar, numerar, remapear, salonDe } from "../domain/jornada";
 import { indexar } from "../domain/plano";
 import { crearStore, type Almacen } from "../storage/store";
 import type { Ctx, NombrePantalla, Pantalla } from "./contexto";
@@ -47,7 +47,8 @@ export function crearApp(raiz: HTMLElement): void {
     camareros: store.camareros(),
     guardarPlano(p, cambios = new Map()) {
       const j = remapear({ ...ctx.jornada, plano: p }, cambios);
-      ctx.guardarJornada(normalizar(j, indexar(salonDe(j))));
+      // si la edición deshizo una unión, sus mesas vuelven a tener número propio
+      ctx.guardarJornada(numerar(normalizar(j, indexar(salonDe(j)))));
     },
     guardarJornada(j) {
       const cambioElPlano = j.plano !== ctx.jornada.plano;

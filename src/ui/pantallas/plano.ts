@@ -71,7 +71,7 @@ export function crearPlano(ctx: Ctx): Pantalla {
     opciones: { descartarCarga?: boolean } = {},
   ): void {
     try {
-      const { salon, cambios } = editar(ctx.ix.salon, operacion);
+      const { salon, cambios } = editar(ctx.ix.salon, operacion, opciones.descartarCarga ? [] : ctx.jornada.uniones);
       const errores = validarSalon(salon);
       if (errores.length) throw new ErrorPlano(errores[0]!);
       // subir una mesa deja los mismos números en el plano, pero las dos mesas se intercambian y

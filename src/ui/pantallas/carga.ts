@@ -1,8 +1,10 @@
 import {
+  achicar,
   candidataAnterior,
   candidataAUnir,
   conValor,
   idsDeUnidad,
+  numerar,
   pasos,
   separar,
   unidadesActivas,
@@ -113,7 +115,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
   function aplicarUnion(nueva: (j: Jornada) => Jornada): void {
     guardarBuffer();
     recordar();
-    const j = nueva(ctx.jornada);
+    const j = numerar(nueva(ctx.jornada)); // la mesa larga queda con un solo número y las de arriba se corren
     ctx.guardarJornada(j);
     const v = valorDe(j, actual());
     buf = v === null ? "" : String(v);
@@ -132,7 +134,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
 
   function separarUnidad(): void {
     recordar();
-    ctx.guardarJornada(separar(ctx.jornada, actual()));
+    ctx.guardarJornada(numerar(separar(ctx.jornada, actual())));
     buf = "";
     fresco = true;
     pintar();
@@ -299,6 +301,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
       h(
         "div",
         { class: "menu-lista", role: "menu" },
+        item("Sacar una mesa", () => aplicarUnion((j) => achicar(j, actual())), { desactivado: !unidas }),
         item("Separar", separarUnidad, { desactivado: !unidas }),
         item("Editar plano", () => { guardarBuffer(); ctx.ir("plano"); }),
         item("Terminar y repartir", repartir),
@@ -326,7 +329,6 @@ export function crearCarga(ctx: Ctx): Pantalla {
 
     // fila de la mesa: nombre y fila a la izquierda, cubiertos a la derecha
     $mesa.textContent = etiquetaUnidad(ids);
-    $mesa.classList.toggle("chico", ids.length > 2);
     $fila.textContent = ids.length > 1 ? " · unidas" : " · fila " + (mesa.pos + 1);
     $valor.textContent = buf !== "" ? buf : "0";
     $valor.classList.toggle("ph", buf === "");
@@ -337,16 +339,16 @@ export function crearCarga(ctx: Ctx): Pantalla {
       const u = idsDeUnidad(j, e);
       const v = j.cub[e];
       if (u[0] === e && v !== null && v !== undefined) {
-        cargadas += u.length;
+        cargadas++; // una mesa larga cuenta como una
         cubiertos += v;
       }
     }
-    $prog.textContent = `${cargadas}/${ix.orden.length} mesas · ${cubiertos} cub.`;
+    const lista = pasos(j, ix);
+    $prog.textContent = `${cargadas}/${lista.length} mesas · ${cubiertos} cub.`;
 
     // el botón grande: en la última mesa guarda y, con todo cargado, pasa a repartir
-    const lista = pasos(j, ix);
     const esUltimo = lista.indexOf(ids[0]!) === lista.length - 1;
-    modoBoton = !esUltimo ? "siguiente" : cargadas === ix.orden.length ? "repartir" : "guardar";
+    modoBoton = !esUltimo ? "siguiente" : cargadas === lista.length ? "repartir" : "guardar";
     $siguiente.textContent = modoBoton === "siguiente" ? "Siguiente →" : modoBoton === "repartir" ? "Repartir →" : "Guardar";
 
     $unirSiguiente.disabled = candidataAUnir(j, ix, actual()) === null;
@@ -380,18 +382,19 @@ export function crearCarga(ctx: Ctx): Pantalla {
       ANCHO_MESA,
     );
 
-    // Las unidas, estén o no seleccionadas, se ven como una sola pieza con un único aro por fuera:
-    // las mesas del grupo quedan pegadas (sin separación ni aro entre ellas) y los extremos cierran el aro.
+    // Las unidas, estén o no seleccionadas, se ven como una sola mesa con un único aro: la primera (la de
+    // abajo) se estira hacia arriba sobre las otras, que quedan ocultas debajo.
     const botones = new Map<string, HTMLElement>();
     grilla.querySelectorAll<HTMLElement>("button[data-eti]").forEach((b) => botones.set(b.dataset.eti!, b));
     for (const unidad of ctx.jornada.uniones) {
       unidad.forEach((etiqueta, k) => {
         const b = botones.get(etiqueta);
         if (!b) return;
-        b.classList.add("unida");
-        if (k === 0) b.classList.add("ub"); // la de abajo cierra el aro por abajo
-        if (k === unidad.length - 1) b.classList.add("ut"); // la de arriba, por arriba
-        if (k < unidad.length - 1) b.parentElement?.classList.add("une"); // se estira hasta tocar a la de arriba
+        if (k > 0) b.classList.add("tapada");
+        else {
+          b.classList.add("larga");
+          b.style.setProperty("--n", String(unidad.length));
+        }
       });
     }
 

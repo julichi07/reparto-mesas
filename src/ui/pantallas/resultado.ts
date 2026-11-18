@@ -1,4 +1,4 @@
-import { unidadesActivas, valorDe, type Unidad } from "../../domain/jornada";
+import { unidadesActivas, type Unidad } from "../../domain/jornada";
 import { asignar } from "../../solver/asignar";
 import { ROTACION } from "../../solver/config";
 import { repartirDelDia } from "../../solver/delDia";
@@ -130,7 +130,7 @@ export function crearResultado(ctx: Ctx): Pantalla {
     for (const r of resultado) {
       const d = r.cubiertos - prom;
       const dt = d === 0 ? "justo en el promedio" : (d > 0 ? "+" + d : String(d)) + " respecto del promedio";
-      const nMesas = r.unidades.reduce((a, u) => a + u.ids.length, 0);
+      const nMesas = r.unidades.length; // una mesa larga es una sola mesa
       $lista.append(
         h(
           "div",
@@ -149,12 +149,24 @@ export function crearResultado(ctx: Ctx): Pantalla {
 
     const colorDe = new Map<string, string>();
     for (const r of resultado) for (const u of r.unidades) for (const id of u.ids) colorDe.set(id, r.color);
+    // Una mesa unida se dibuja como una sola pieza: la primera (la de abajo) se estira hacia arriba sobre
+    // las otras, con su número y el total en el centro; las demás quedan ocultas debajo.
+    const unidad = new Map<string, Unidad>();
+    for (const r of resultado) for (const u of r.unidades) for (const id of u.ids) unidad.set(id, u);
     vaciar($plano);
     $plano.append(
       dibujarPlano(ctx.ix, "", (m) => {
         const color = colorDe.get(m.etiqueta);
-        if (!color) return h("div", {}, m.etiqueta);
-        return h("div", { class: "on", estilo: { background: color } }, m.etiqueta, h("small", {}, String(valorDe(ctx.jornada, m.etiqueta) ?? "")));
+        const u = unidad.get(m.etiqueta);
+        if (!color || !u) return h("div", {}, m.etiqueta);
+        if (u.ids.length > 1 && u.ids[0] !== m.etiqueta) return h("div", { class: "tapada" });
+        // backgroundColor y no background: la mesa larga dibuja sus rayitas con background-image
+        const el = h("div", { class: "on", estilo: { backgroundColor: color } }, m.etiqueta, h("small", {}, String(u.cub)));
+        if (u.ids.length > 1) {
+          el.classList.add("larga");
+          el.style.setProperty("--n", String(u.ids.length));
+        }
+        return el;
       }),
       h("div", { class: "mostrador" }, "mostrador"),
     );

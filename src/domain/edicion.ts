@@ -75,16 +75,38 @@ export function topeDeColumna(salon: Salon, col: number): number {
 /** Reasigna las etiquetas según el lugar de cada mesa: la de la posición n de una columna es
     `inicio + n`, y las adicionales suman letra (2, 2B, 2C). Es lo que hace que, al borrar la 3,
     la que era 4 pase a ser 3. Las mesas que pasan del tope de la columna (la 19 en la columna
-    que va de 10 a 19) se llaman 19+1, 19+2… Falla si dos columnas terminarían con la misma mesa. */
-export function renumerar(salon: Salon): { salon: Salon; cambios: Cambios } {
+    que va de 10 a 19) se llaman 19+1, 19+2… Falla si dos columnas terminarían con la misma mesa.
+
+    `uniones` (etiquetas de antes de renumerar) son mesas largas: cuentan como una sola mesa, con el
+    número de la primera, y la que sigue toma el número siguiente (si de la 3 a la 6 es una mesa larga,
+    la que era 7 pasa a ser la 4). Las otras mesas de la unión se llaman 3.2, 3.3, 3.4: no se ven en la
+    carga ni en el resultado, que dibujan la unión como una sola pieza. Una unión que ya no es de mesas
+    principales seguidas de una columna no cuenta (normalizar() la deshace). */
+export function renumerar(salon: Salon, uniones: readonly Etiqueta[][] = []): { salon: Salon; cambios: Cambios } {
   const s = copia(salon);
   const cambios = new Map<Etiqueta, Etiqueta>();
   const dueña = new Map<Etiqueta, number>();
+  // mesa de una unión válida → su lugar dentro de la unión (0 = la primera)
+  const enUnion = new Map<Etiqueta, number>();
+  const ix = uniones.length ? indexar(salon) : null;
+  for (const u of uniones) {
+    const mesas = u.map((e) => ix!.porEtiqueta.get(e));
+    const seguidas =
+      u.length > 1 && mesas.every((m, k) => m && m.sub === 0 && m.col === mesas[0]!.col && m.pos === mesas[0]!.pos + k);
+    if (seguidas && u.every((e) => !enUnion.has(e))) u.forEach((e, k) => enUnion.set(e, k));
+  }
   s.columnas.forEach((c, col) => {
     const tope = topeDeColumna(salon, col);
-    c.posiciones.forEach((grupo, i) => {
-      const numero = c.inicio + i;
-      const principal = numero <= tope ? String(numero) : `${tope}+${numero - tope}`;
+    let i = -1;
+    let base = "";
+    c.posiciones.forEach((grupo) => {
+      const lugar = enUnion.get(grupo[0]!) ?? 0;
+      let principal: string;
+      if (lugar === 0) {
+        i++;
+        const numero = c.inicio + i;
+        principal = base = numero <= tope ? String(numero) : `${tope}+${numero - tope}`;
+      } else principal = `${base}.${lugar + 1}`;
       grupo.forEach((vieja, sub) => {
         const nueva = sub === 0 ? principal : principal + LETRAS[sub - 1];
         const otra = dueña.get(nueva);
@@ -111,8 +133,12 @@ export function renumerar(salon: Salon): { salon: Salon; cambios: Cambios } {
 
 /** Aplica una operación de edición y renumera. Es lo que usa el editor: el resultado ya tiene
     los números que corresponden, y `cambios` dice a qué mesa corresponde cada número viejo. */
-export function editar(salon: Salon, operacion: (s: Salon) => Salon): { salon: Salon; cambios: Cambios } {
-  return renumerar(operacion(salon));
+export function editar(
+  salon: Salon,
+  operacion: (s: Salon) => Salon,
+  uniones: readonly Etiqueta[][] = [],
+): { salon: Salon; cambios: Cambios } {
+  return renumerar(operacion(salon), uniones);
 }
 
 /** Cambia el número con el que empieza una columna (la mesa 20 pasa a ser la 30, etc.). */

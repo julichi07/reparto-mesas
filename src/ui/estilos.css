@@ -125,13 +125,19 @@ h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
 .mini .celda>button.cero{box-shadow:inset 0 0 0 1px var(--strong);opacity:.5}
 .mini .celda>button.act{background:var(--pine);box-shadow:0 0 0 2px var(--pine);color:var(--pineink)}
 .mini .celda.doble>button{font-size:12px}
-/* mesas unidas: una sola pieza con un único aro azul por fuera, estén o no seleccionadas. Las mesas del
-   grupo se tocan (la de abajo se estira sobre el hueco) y solo los extremos cierran el aro. */
-.mini .celda.une{margin-top:-3.5px} /* 3 px de hueco + medio píxel de solape para que no se vea una costura */
-.mini .celda>button.unida{--aro-arriba:0 0 0 0 transparent;--aro-abajo:0 0 0 0 transparent;border-radius:0;
-  box-shadow:inset 2px 0 0 var(--focus),inset -2px 0 0 var(--focus),var(--aro-arriba),var(--aro-abajo)}
-.mini .celda>button.unida.ut{--aro-arriba:inset 0 2px 0 var(--focus);border-radius:3px 3px 0 0}
-.mini .celda>button.unida.ub{--aro-abajo:inset 0 -2px 0 var(--focus);border-radius:0 0 3px 3px}
+/* mesas unidas: una sola mesa con un único aro azul, estén o no seleccionadas. La primera (la de abajo) sube
+   sobre las demás, que quedan ocultas (3 px = el hueco de la grilla) */
+.mini .celda{position:relative}
+.mini .celda>button.larga{position:absolute;left:0;right:0;bottom:0;z-index:1;
+  height:calc(var(--n) * 100% + (var(--n) - 1) * 3px);box-shadow:inset 0 0 0 2px var(--focus)}
+.mini .celda>button.larga.act{box-shadow:0 0 0 2px var(--pine)}
+/* cuántas mesas tiene una mesa larga: una rayita tenue a cada lado por cada unión, donde se tocan las mesas
+   (en el medio no, que ahí va el número) */
+.mini .celda>button.larga,.plan .celda>div.larga{--raya:rgba(255,255,255,.3);
+  --rayas:repeating-linear-gradient(to top, transparent 0 calc(100% / (var(--n) - 1) - 1px), var(--raya) 0 calc(100% / (var(--n) - 1)));
+  background-image:var(--rayas),var(--rayas);background-repeat:no-repeat;background-position:left bottom,right bottom;
+  background-size:22% calc(100% * (var(--n) - 1) / var(--n)),22% calc(100% * (var(--n) - 1) / var(--n))}
+.mini .celda>button.tapada{visibility:hidden}
 
 /* editor de plano */
 .plan .celda>button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
@@ -220,7 +226,13 @@ input[type=text]{flex:1;font-family:inherit;font-size:16px;background:var(--card
   font-size:11px;font-weight:700;line-height:1.05;background:var(--empty);color:var(--soft);
   box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
 .plan .celda>div.on{color:#fff;box-shadow:none}
-.plan .celda>div small{font-size:10px;font-weight:600;opacity:.85}
+/* los cubiertos van en una pastilla oscura debajo del número de mesa, para no confundir 17 · 6 con 176 */
+.plan .celda>div small{font-size:10px;font-weight:700;background:rgba(0,0,0,.32);border-radius:999px;
+  padding:1px 5px;margin-top:2px;min-width:16px;text-align:center}
+/* mesa unida: una sola pieza que sube desde su primera mesa y tapa las de arriba (4 px = el gap de la grilla) */
+.plan .celda{position:relative}
+.plan .celda>div.larga{position:absolute;left:0;right:0;bottom:0;height:calc(var(--n) * 100% + (var(--n) - 1) * 4px);z-index:1}
+.plan .celda>div.tapada{visibility:hidden}
 .mostrador{margin:7px -9px 0;background:var(--pine);color:var(--pineink);text-align:center;
   font-size:11.5px;font-weight:700;padding:6px 0;border-radius:0 0 7px 7px}
 .aviso{font-size:13px;background:var(--empty);border:1px solid var(--strong);border-radius:var(--r);padding:9px 11px}

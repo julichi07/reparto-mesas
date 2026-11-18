@@ -1,3 +1,4 @@
+import { renumerar } from "./edicion";
 import { indexar, planoInicial, posicionSiguiente, type Etiqueta, type IndicePlano, type Plano, type Salon } from "./plano";
 
 /* Estado de un día de trabajo: el plano de hoy, los cubiertos cargados y las mesas unidas.
@@ -47,7 +48,7 @@ const salonBase = (): string => planoInicial().salones[0]!.id;
     conserva, porque un turno puede pasar de medianoche. */
 export function jornadaAlArrancar(guardada: Jornada | null, hoy: string): Jornada {
   if (guardada && (guardada.fecha === hoy || hayCarga(guardada))) {
-    return normalizar(guardada, indexar(salonDe(guardada)));
+    return numerar(normalizar(guardada, indexar(salonDe(guardada))));
   }
   return jornadaVacia(hoy, salonBase());
 }
@@ -113,6 +114,16 @@ export function remapear(j: Jornada, cambios: ReadonlyMap<Etiqueta, Etiqueta>): 
   const actual = j.actual === undefined ? undefined : cambios.get(j.actual);
   const { actual: _descartada, ...resto } = j;
   return { ...resto, cub, uniones, ...(actual !== undefined ? { actual } : {}) };
+}
+
+/** Pone los números según las uniones: una mesa larga es una sola mesa y las que siguen corren los números
+    (ver renumerar()). La carga acompaña a cada mesa. Se corre después de unir, separar o editar el plano. */
+export function numerar(j: Jornada): Jornada {
+  const salon = salonDe(j);
+  const { salon: nuevo, cambios } = renumerar(salon, j.uniones);
+  if ([...cambios].every(([vieja, nueva]) => vieja === nueva)) return j;
+  const plano = { ...j.plano, salones: j.plano.salones.map((s) => (s.id === salon.id ? nuevo : s)) };
+  return remapear({ ...j, plano }, cambios);
 }
 
 /** Mesas de la unidad a la que pertenece `etiqueta` (ella sola si no está unida). */
@@ -186,6 +197,19 @@ export function separar(j: Jornada, etiqueta: Etiqueta): Jornada {
   const cub = { ...j.cub };
   for (const e of ids) delete cub[e];
   return { ...j, cub, uniones: j.uniones.filter((u) => !u.includes(etiqueta)), actual: ids[0]! };
+}
+
+/** Saca la mesa de más arriba de una mesa larga: de 4 unidas quedan 3, y de 2 quedan sueltas. El total
+    cargado queda en la mesa larga (se corrige a mano) y la que sale queda sin cargar. */
+export function achicar(j: Jornada, etiqueta: Etiqueta): Jornada {
+  const ids = idsDeUnidad(j, etiqueta);
+  if (ids.length < 2) return j;
+  const quedan = ids.slice(0, -1);
+  const cub = { ...j.cub };
+  delete cub[ids[ids.length - 1]!];
+  const uniones = j.uniones.filter((u) => u !== ids);
+  if (quedan.length > 1) uniones.push(quedan);
+  return { ...j, cub, uniones, actual: ids[0]! };
 }
 
 /** Los pasos de la carga: la primera mesa de cada unidad, en orden. Una unión es un solo paso. */
