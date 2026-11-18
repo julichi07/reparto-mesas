@@ -1,4 +1,5 @@
-import type { Etiqueta, IndicePlano } from "../domain/plano";
+import { alLado, alturas } from "../domain/altura";
+import type { Etiqueta, IndicePlano, Mesa } from "../domain/plano";
 
 /* Forma de las plazas, medida sobre un reparto ya hecho (las mismas dos cuentas que usa el solver). */
 
@@ -29,11 +30,12 @@ export function tramosDeMas(bloques: Etiqueta[][], ix: IndicePlano): number {
 
 /** Mesas colgadas: cuando un camarero ocupa dos columnas contiguas, las mesas del tramo que menos sobresale
     que tienen al lado una mesa de otro. Si es 0, los dos tramos de cada plaza están uno al lado del otro. */
-export function mesasColgadas(bloques: Etiqueta[][], ix: IndicePlano): number {
+export function mesasColgadas(bloques: Etiqueta[][], ix: IndicePlano, uniones: readonly Etiqueta[][] = []): number {
   const dueño = new Map<Etiqueta, number>();
   bloques.forEach((mesas, x) => mesas.forEach((e) => dueño.set(e, x)));
-  const alLado = (col: number, pos: number): number | undefined => {
-    for (const v of ix.porCelda.get(col + "," + pos) ?? []) {
+  const alt = alturas(ix, uniones);
+  const deAlLado = (m: Mesa, paso: -1 | 1): number | undefined => {
+    for (const v of alLado(ix, alt, m, paso)) {
       const x = dueño.get(v.etiqueta);
       if (x !== undefined) return x;
     }
@@ -48,8 +50,8 @@ export function mesasColgadas(bloques: Etiqueta[][], ix: IndicePlano): number {
       const m = ix.porEtiqueta.get(e);
       if (!m) continue;
       columnas.add(m.col);
-      const izq = alLado(m.col - 1, m.pos);
-      const der = alLado(m.col + 1, m.pos);
+      const izq = deAlLado(m, -1);
+      const der = deAlLado(m, 1);
       if (izq !== undefined && izq !== x) sinParIzq.set(m.col, (sinParIzq.get(m.col) ?? 0) + 1);
       if (der !== undefined && der !== x) sinParDer.set(m.col, (sinParDer.get(m.col) ?? 0) + 1);
     }

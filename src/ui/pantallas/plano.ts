@@ -14,6 +14,7 @@ import {
   mesaTrasBorrar,
   moverPosicion,
 } from "../../domain/edicion";
+import { alturas } from "../../domain/altura";
 import type { Jornada } from "../../domain/jornada";
 import { planoInicial, validarSalon, type Etiqueta, type Salon } from "../../domain/plano";
 import type { Ctx, Pantalla } from "../contexto";
@@ -223,7 +224,7 @@ export function crearPlano(ctx: Ctx): Pantalla {
       );
     });
 
-    $plano.style.setProperty("--filas", String(ix.alto)); // las filas se ajustan para que quepa todo
+    $plano.style.setProperty("--filas", String(alturas(ix, []).alto)); // las filas se ajustan para que quepa todo
     $cargar.hidden = destino === "carga";
     $plano.style.setProperty("--reserva", destino === "carga" ? "444px" : "500px"); // alto de lo que no es el plano
     vaciar($plano);

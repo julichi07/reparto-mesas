@@ -13,6 +13,7 @@ import {
   valorDe,
   type Jornada,
 } from "../../domain/jornada";
+import { alturas } from "../../domain/altura";
 import { agregarAdicional, agregarPosicion, borrarMesa, ErrorPlano, mesaTrasBorrar } from "../../domain/edicion";
 import { planoInicial, type Etiqueta, type Salon } from "../../domain/plano";
 import type { Ctx, Pantalla } from "../contexto";
@@ -366,7 +367,7 @@ export function crearCarga(ctx: Ctx): Pantalla {
   function pintarPlano(activas: Set<Etiqueta>): void {
     vaciar($plano);
     const ix = ctx.ix;
-    $plano.style.setProperty("--filas", String(ix.alto));
+    $plano.style.setProperty("--filas", String(alturas(ix, ctx.jornada.uniones).alto));
     const grilla = dibujarPlano(
       ix,
       "mini",
@@ -380,23 +381,8 @@ export function crearCarga(ctx: Ctx): Pantalla {
         );
       },
       ANCHO_MESA,
+      ctx.jornada.uniones, // una mesa larga es una sola pieza, con un único aro
     );
-
-    // Las unidas, estén o no seleccionadas, se ven como una sola mesa con un único aro: la primera (la de
-    // abajo) se estira hacia arriba sobre las otras, que quedan ocultas debajo.
-    const botones = new Map<string, HTMLElement>();
-    grilla.querySelectorAll<HTMLElement>("button[data-eti]").forEach((b) => botones.set(b.dataset.eti!, b));
-    for (const unidad of ctx.jornada.uniones) {
-      unidad.forEach((etiqueta, k) => {
-        const b = botones.get(etiqueta);
-        if (!b) return;
-        if (k > 0) b.classList.add("tapada");
-        else {
-          b.classList.add("larga");
-          b.style.setProperty("--n", String(unidad.length));
-        }
-      });
-    }
 
     // Toque: va a esa mesa (sin salir de la edición si estaba abierta). Pulsación larga: la selecciona
     // y abre la edición. Es un solo manejador para toda la grilla, que se vuelve a dibujar en cada cambio.

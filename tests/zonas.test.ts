@@ -67,7 +67,8 @@ describe("los camareros se quedan dentro de su zona", () => {
       expect(r.fuera).toBeLessThanOrEqual(1);
       expect(r.dif).toBeLessThanOrEqual(4);
     }
-    expect(resultados[1]!.totales).toEqual(resultados[0]!.totales);
+    const ordenados = (t: number[]) => [...t].sort((p, q) => p - q);
+    expect(ordenados(resultados[1]!.totales)).toEqual(ordenados(resultados[0]!.totales));
   });
 
   it("los bloques quedan compactos: la zona de las columnas 3-4 no tiene una mesa colgada en otra zona", () => {

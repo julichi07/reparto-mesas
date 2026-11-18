@@ -49,7 +49,7 @@ describe("medidas de la forma de las plazas", () => {
     expect(mesasColgadas(reportado, ixReportado)).toBe(1); // la 23, lejos de 14-17
   });
 
-  it("el reparto propuesto por el usuario no tiene ninguna de las dos", () => {
+  it("el reparto propuesto por el usuario no tiene plazas cortadas, y con la altura real casi no cuelga", () => {
     const propuesto = [
       ["1", "2", "3", "4", "5", "10", "11", "12", "13"],
       ["6", "7", "8", "9", "18", "19"],
@@ -58,7 +58,9 @@ describe("medidas de la forma de las plazas", () => {
       ["40", "41", "42", "43", "44", "50", "51", "52", "53", "54"],
     ];
     expect(tramosDeMas(propuesto, ixReportado)).toBe(0);
-    expect(mesasColgadas(propuesto, ixReportado)).toBe(0);
+    // la columna 10 tenía la 19 agregada: termina donde la 9, así que sus mesas quedan un poco más abajo y la
+    // 27 sobresale de la 17 (con la grilla de antes daba 0)
+    expect(mesasColgadas(propuesto, ixReportado)).toBe(1);
   });
 
   it("una mesa sin usar en el medio no corta la plaza", () => {

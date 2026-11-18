@@ -1,3 +1,4 @@
+import { alLado, alturas, centro } from "../domain/altura";
 import { grafo } from "../domain/grafo";
 import type { Unidad } from "../domain/jornada";
 import type { IndicePlano, Mesa } from "../domain/plano";
@@ -51,15 +52,18 @@ export function repartir(
   // que evita reservar memoria en cada llamada: buffers fijos y datos de las mesas ya aplanados.
   const vecinos = g.map((s) => [...s]);
   const celdaCol = celdas.map((ms) => ms.map((m) => m.col));
-  const celdaPos = celdas.map((ms) => ms.map((m) => m.pos));
+  // altura real de cada mesa (las columnas terminan donde termina el salón; ver domain/altura.ts)
+  const alt = alturas(ix, unidades.map((u) => u.ids));
+  const celdaY0 = celdas.map((ms) => ms.map((m) => alt.tramo.get(m.etiqueta)!.y0));
+  const celdaY1 = celdas.map((ms) => ms.map((m) => alt.tramo.get(m.etiqueta)!.y1));
   const celdaZona = celdas.map((ms) => ms.map((m) => zonaDe(m.col)));
   const c = new Int32Array(k);
   const G = new Int32Array(k);
   const t = new Int32Array(k);
   const c0 = new Int32Array(k);
   const c1 = new Int32Array(k);
-  const p0 = new Int32Array(k);
-  const p1 = new Int32Array(k);
+  const p0 = new Float64Array(k);
+  const p1 = new Float64Array(k);
   const enZona = new Int32Array(k * nZonas); // mesas de cada bloque en cada zona
   let ultimoExceso = 0; // mesas fuera de las columnas permitidas, del último reparto evaluado
   const nColumnas = ix.salon.columnas.length;
@@ -83,15 +87,15 @@ export function repartir(
     const u = unidadDe.get(m.etiqueta);
     if (u !== undefined) enOrden[m.col]!.push(u);
   }
-  const alLado = (m: Mesa, paso: number): number => {
-    for (const v of ix.porCelda.get(m.col + paso + "," + m.pos) ?? []) {
+  const unidadAlLado = (m: Mesa, paso: -1 | 1): number => {
+    for (const v of alLado(ix, alt, m, paso)) {
       const u = unidadDe.get(v.etiqueta);
       if (u !== undefined) return u;
     }
     return -1;
   };
-  const celdaIzq = celdas.map((ms) => ms.map((m) => alLado(m, -1)));
-  const celdaDer = celdas.map((ms) => ms.map((m) => alLado(m, 1)));
+  const celdaIzq = celdas.map((ms) => ms.map((m) => unidadAlLado(m, -1)));
+  const celdaDer = celdas.map((ms) => ms.map((m) => unidadAlLado(m, 1)));
   const sinParIzq = new Int32Array(k * nColumnas); // mesas del bloque cuya vecina de la izquierda es de otro
   const sinParDer = new Int32Array(k * nColumnas);
   let ultimoPartidos = 0; // tramos de más (plazas cortadas dentro de una columna), del último reparto evaluado
@@ -99,7 +103,7 @@ export function repartir(
   // Franjas: solo al fondo (las últimas FRANJA.filas posiciones de cada columna) y dentro de uno de los
   // grupos de columnas de FRANJA.grupos (por número inicial: 1-10-20 o 30-40-50).
   const alFondo = celdas.map((ms) =>
-    ms.every((m) => m.pos >= ix.salon.columnas[m.col]!.posiciones.length - FRANJA.filas),
+    ms.every((m) => centro(alt.tramo.get(m.etiqueta)!) >= alt.largo[m.col]! - FRANJA.filas),
   );
   const gruposFranja = FRANJA.grupos.map((inicios) =>
     ix.salon.columnas.reduce((mascara, columna, j) => (inicios.includes(columna.inicio) ? mascara | (1 << j) : mascara), 0),
@@ -148,8 +152,8 @@ export function repartir(
     t.fill(0);
     c0.fill(99);
     c1.fill(-99);
-    p0.fill(999);
-    p1.fill(-99);
+    p0.fill(1e9);
+    p1.fill(-1e9);
     enZona.fill(0);
     sinParIzq.fill(0);
     sinParDer.fill(0);
@@ -162,15 +166,15 @@ export function repartir(
       G[x]! += gr[u]!;
       t[x]!++;
       const cols = celdaCol[u]!;
-      const poss = celdaPos[u]!;
+      const y0s = celdaY0[u]!;
+      const y1s = celdaY1[u]!;
       const zonas = celdaZona[u]!;
       for (let i = 0; i < cols.length; i++) {
         const col = cols[i]!;
-        const pos = poss[i]!;
         if (col < c0[x]!) c0[x] = col;
         if (col > c1[x]!) c1[x] = col;
-        if (pos < p0[x]!) p0[x] = pos;
-        if (pos > p1[x]!) p1[x] = pos;
+        if (y0s[i]! < p0[x]!) p0[x] = y0s[i]!;
+        if (y1s[i]! > p1[x]!) p1[x] = y1s[i]!;
         enZona[x * nZonas + zonas[i]!]!++;
         enColumna[x * nColumnas + col]!++;
         columnasDe[x]! |= 1 << col;
@@ -218,7 +222,7 @@ export function repartir(
       bal += d * d;
       const dg = G[x]! - mediaG;
       big += dg * dg;
-      comp += 2 * (c1[x]! - c0[x]! + 1 + (p1[x]! - p0[x]! + 1));
+      comp += 2 * (c1[x]! - c0[x]! + 1 + (p1[x]! - p0[x]!)); // alto en largos de mesa (antes, filas)
       // mesas que quedan fuera de la zona donde el bloque tiene más
       let total = 0;
       let mayor = 0;
@@ -288,7 +292,7 @@ export function repartir(
         for (const s of sem)
           for (const m of celdas[u]!)
             for (const p of celdas[s]!) {
-              const dd = Math.abs(p.col - m.col) * 2.2 + Math.abs(p.pos - m.pos);
+              const dd = Math.abs(p.col - m.col) * 2.2 + Math.abs(centro(alt.tramo.get(p.etiqueta)!) - centro(alt.tramo.get(m.etiqueta)!));
               if (dd < d) d = dd;
             }
         d += rnd() * 1.6;

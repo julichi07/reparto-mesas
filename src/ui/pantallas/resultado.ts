@@ -149,25 +149,24 @@ export function crearResultado(ctx: Ctx): Pantalla {
 
     const colorDe = new Map<string, string>();
     for (const r of resultado) for (const u of r.unidades) for (const id of u.ids) colorDe.set(id, r.color);
-    // Una mesa unida se dibuja como una sola pieza: la primera (la de abajo) se estira hacia arriba sobre
-    // las otras, con su número y el total en el centro; las demás quedan ocultas debajo.
+    // una mesa larga es una sola pieza, con su número y el total en el centro
     const unidad = new Map<string, Unidad>();
     for (const r of resultado) for (const u of r.unidades) for (const id of u.ids) unidad.set(id, u);
     vaciar($plano);
     $plano.append(
-      dibujarPlano(ctx.ix, "", (m) => {
-        const color = colorDe.get(m.etiqueta);
-        const u = unidad.get(m.etiqueta);
-        if (!color || !u) return h("div", {}, m.etiqueta);
-        if (u.ids.length > 1 && u.ids[0] !== m.etiqueta) return h("div", { class: "tapada" });
-        // backgroundColor y no background: la mesa larga dibuja sus rayitas con background-image
-        const el = h("div", { class: "on", estilo: { backgroundColor: color } }, m.etiqueta, h("small", {}, String(u.cub)));
-        if (u.ids.length > 1) {
-          el.classList.add("larga");
-          el.style.setProperty("--n", String(u.ids.length));
-        }
-        return el;
-      }),
+      dibujarPlano(
+        ctx.ix,
+        "",
+        (m) => {
+          const color = colorDe.get(m.etiqueta);
+          const u = unidad.get(m.etiqueta);
+          if (!color || !u) return h("div", {}, m.etiqueta);
+          // backgroundColor y no background: la mesa larga dibuja sus rayitas con background-image
+          return h("div", { class: "on", estilo: { backgroundColor: color } }, m.etiqueta, h("small", {}, String(u.cub)));
+        },
+        undefined,
+        ctx.jornada.uniones,
+      ),
       h("div", { class: "mostrador" }, "mostrador"),
     );
     pintarBotonConfirmar();

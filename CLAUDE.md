@@ -36,7 +36,7 @@ Node es **portable** (no está en el PATH de las sesiones): antes de cualquier c
 - `src/ui/`: `app.ts` (contexto y navegación), `pantallas/` (menu, carga, hoy, resultado, plano, camareros),
   `modal.ts` (alerta a pantalla completa para confirmar; reemplaza a `confirm()`), `confirmar.ts` (segundo
   toque, solo para "Sacar" un camarero), `editarPlano.ts`, `espera.ts`
-- `tests/` (162 tests): incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
+- `tests/` (167 tests): incluye regresión contra el solver del prototipo (`fixtures/golden.json`, generado con
   `fixtures/generar-golden.mjs`), la regla de las 2 columnas, las zonas y la forma de las plazas (`forma.test.ts`)
 
 ## Flujo de pantallas
@@ -94,9 +94,12 @@ es lo que muestra la carga junto al nombre de la mesa: "Mesa 7 · fila 7"). Una 
   se hayan pedido (el usuario lo considera un vicio típico del diseño hecho con IA).
 - Con el personal ya elegido, "Terminar y repartir" de la carga reparte directo (por ejemplo al volver a
   corregir el plano después de repartir); si no hay personal, pasa a "Personal".
-- Las mesas unidas se dibujan como una sola mesa alta, con el número (y en el resultado los cubiertos) en el
-  centro: la primera se estira sobre las demás (`.larga` con `--n`; las otras, `.tapada`). En la carga lleva un
-  aro azul. Una rayita tenue a cada lado por cada mesa agregada muestra cuántas son. En el resultado los
+- **Altura real** (`domain/altura.ts`, dicho por el usuario): las columnas terminan donde termina el salón ("la 16
+  termina en el mismo lugar que la 9"). Cada columna mide lo que en el plano base y sus mesas se reparten a lo
+  largo; cada mesa agregada a una mesa larga ocupa `LARGO_MESA_AGREGADA` (0,75) porque entre mesa y mesa no hay
+  gente. El solver (vecinas de al lado, compacidad, fondo de la franja) y el dibujo usan esa altura, no la fila.
+- Las mesas unidas se dibujan como una sola pieza (`plano-vista.ts` con `uniones`), con el número (y en el
+  resultado los cubiertos) en el centro. En la carga lleva un aro azul; el editor las muestra mesa por mesa. Una rayita tenue a cada lado por cada mesa agregada muestra cuántas son. En el resultado los
   cubiertos van en una pastilla oscura, para no confundirlos con el número.
 - "Sacar una mesa" (menú ⋯ de la carga, `achicar`) le saca la de más arriba a una mesa larga: el total queda
   en la mesa larga y la que sale queda sin cargar.
